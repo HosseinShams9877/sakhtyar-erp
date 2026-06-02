@@ -10,6 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { useProject } from '@/components/project-context';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -129,6 +130,7 @@ export default function DueDates() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  const { activeProject } = useProject();
 
   // Filters
   const [search, setSearch] = useState('');
@@ -159,21 +161,29 @@ export default function DueDates() {
   const loadData = useCallback(async () => {
     try {
       const params = new URLSearchParams();
+      
+      // اضافه کردن projectId از پروژه فعال (از هدر) - اولویت با activeProject
+      const activeProjectId = activeProject?.id || '';
+      if (activeProjectId) {
+        params.set('projectId', activeProjectId);
+      }
+      
+      // فیلترهای دستی کاربر (می‌تواند activeProjectId را override کند)
       if (urgencyFilter && urgencyFilter !== 'all') params.set('urgency', urgencyFilter);
       if (projectFilter && projectFilter !== 'all') params.set('projectId', projectFilter);
       if (vendorFilter && vendorFilter !== 'all') params.set('supplierId', vendorFilter);
       if (search) params.set('search', search);
-
+  
       const [duesRes, prjRes, vndRes] = await Promise.all([
         fetch(`/api/dues?${params.toString()}`),
         fetch('/api/projects'),
         fetch('/api/vendors'),
       ]);
-
+  
       const duesData = await duesRes.json();
       const prjData = await prjRes.json();
       const vndData = await vndRes.json();
-
+  
       setDues(Array.isArray(duesData.dues) ? duesData.dues : []);
       setSummary(duesData.summary || null);
       setProjects(Array.isArray(prjData) ? prjData : []);
@@ -184,7 +194,7 @@ export default function DueDates() {
     } finally {
       setLoading(false);
     }
-  }, [urgencyFilter, projectFilter, vendorFilter, search]);
+  }, [urgencyFilter, projectFilter, vendorFilter, search, activeProject?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

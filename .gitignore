@@ -41,3 +41,7 @@ yarn-error.log*
 *.tar.gz
 npx
 seed-runner.js
+
+*.zip
+*.rar
+*.7z

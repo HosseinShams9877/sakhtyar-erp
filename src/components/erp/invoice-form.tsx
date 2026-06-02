@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { useProject } from '@/components/project-context'; 
 // Dialog removed — invoice form now renders as full page
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -170,10 +171,11 @@ export default function InvoiceForm() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const { activeProject } = useProject();
   const searchParams = useSearchParams()
   const statusFilter = searchParams.get('status');
   const typeFilter = searchParams.get('type');
-
+  const [isCorrective, setIsCorrective] = useState(false);
 
   // اضافه کن به بقیه useState‌ها
 const [currentPage, setCurrentPage] = useState(1);
@@ -203,12 +205,12 @@ const pageSize = 12;
   const suggestionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // ─── Data Loading ───
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // گرفتن projectId از URL
-      const projectId = searchParams.get('projectId') || '';
+      // گرفتن projectId از URL (اولویت اول) و اگر نبود از activeProject استفاده کن
+      const projectIdFromUrl = searchParams.get('projectId');
+      const projectId = projectIdFromUrl || activeProject?.id || '';
       
       // ساخت URL با در نظر گرفتن فیلترها
       let url = `/api/invoices?search=${search}&page=${currentPage}&pageSize=${pageSize}`;
@@ -227,7 +229,7 @@ const pageSize = 12;
       if (projectId) {
         url += `&projectId=${projectId}`;
       }
-
+      
       console.log('🔍 Fetching URL:', url);
       
       const [invRes, vndRes, prjRes, matRes] = await Promise.all([
@@ -268,7 +270,7 @@ const pageSize = 12;
         totalPages: totalPagesFromServer, 
         totalItems: total,
         receivedCount: invoicesArray.length,
-        filters: { status: statusFilter, type: typeFilter, projectId }
+        filters: { status: statusFilter, type: typeFilter, projectId, projectIdFromUrl }
       });
       
     } catch (error) {
@@ -279,7 +281,7 @@ const pageSize = 12;
     } finally {
       setLoading(false);
     }
-  }, [search, currentPage, pageSize, statusFilter, typeFilter, searchParams]);
+  }, [search, currentPage, pageSize, statusFilter, typeFilter, activeProject?.id, searchParams]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -501,6 +503,13 @@ const pageSize = 12;
       if (files.deliveryReceipt) {
         deliveryReceiptBase64 = await fileToBase64(files.deliveryReceipt);
       }
+
+      let finalDescription = form.description || undefined;
+        if (isCorrective) {
+        finalDescription = finalDescription 
+          ? `اصلاحی - ${finalDescription}` 
+          : 'اصلاحی';
+          }
       
       // ارسال به صورت JSON
       const response = await fetch('/api/invoices', {
@@ -514,7 +523,7 @@ const pageSize = 12;
           dueDate: form.dueDate,
           totalAmount: itemsTotal,
           paidAmount: 0,
-          description: form.description || undefined,
+          description: finalDescription,
           invoiceImage: imageBase64,
           items: itemsData,
           paymentMethod: form.paymentMethod || null,
@@ -557,6 +566,16 @@ const pageSize = 12;
   const handleEdit = (inv: Invoice) => {
     
     setEditingId(inv.id);
+
+    const isCorrectiveInvoice = inv.description?.includes('اصلاحی') || false;
+    setIsCorrective(isCorrectiveInvoice);
+
+    let cleanDescription = inv.description || '';
+    if (cleanDescription.startsWith('اصلاحی - ')) {
+      cleanDescription = cleanDescription.replace('اصلاحی - ', '');
+    } else if (cleanDescription === 'اصلاحی') {
+      cleanDescription = '';
+    }
     setForm({
       invoiceNumber: inv.invoiceNumber,
       vendorId: inv.supplier?.id || '',
@@ -566,7 +585,7 @@ const pageSize = 12;
       settlementDate: inv.settlementDate ? inv.settlementDate.split('T')[0] : '',
       dueDate: inv.dueDate ? inv.dueDate.split('T')[0] : '',
       taxAmount: String(inv.taxAmount || 0),
-      description: inv.description || '',
+      description: cleanDescription,
     });
     
     setItems(
@@ -597,6 +616,7 @@ const pageSize = 12;
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!editingId || !form.invoiceNumber || !form.vendorId) {
       toast.error('لطفاً فیلدهای الزامی را تکمیل کنید');
       return;
@@ -634,6 +654,12 @@ const pageSize = 12;
       if (files.deliveryReceipt) {
         deliveryReceiptBase64 = await fileToBase64(files.deliveryReceipt);
       }
+      let finalDescription = form.description || undefined;
+        if (isCorrective) {
+          finalDescription = finalDescription 
+          ? `اصلاحی - ${finalDescription}` 
+          : 'اصلاحی';   
+        } 
       
       // ساخت body با حذف فیلدهای undefined
       const updateBody: any = {
@@ -645,7 +671,7 @@ const pageSize = 12;
         dueDate: form.dueDate,
         totalAmount: itemsTotal,
         paidAmount: 0,
-        description: form.description || undefined,
+        description: finalDescription,
         paymentMethod: form.paymentMethod || null,
         settlementDate: form.settlementDate || null,
         taxAmount: parseFloat(form.taxAmount) || 0,
@@ -855,6 +881,25 @@ const pageSize = 12;
           </div>
         </div>
       </div>
+
+      {/* چک‌باکس فاکتور اصلاحی */}
+<div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
+  <div className="flex items-center gap-2">
+    <input
+      type="checkbox"
+      id="isCorrective"
+      checked={isCorrective}
+      onChange={(e) => setIsCorrective(e.target.checked)}
+      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+    />
+    <Label htmlFor="isCorrective" className="text-sm font-semibold cursor-pointer">
+      این فاکتور اصلاحی است
+    </Label>
+  </div>
+  <p className="text-[10px] text-muted-foreground">
+    (برای اصلاح فاکتور قبلی، این گزینه را فعال کنید)
+  </p>
+</div>
 
       <Separator />
 
