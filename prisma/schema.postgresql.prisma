@@ -1,0 +1,213 @@
+// ERP Construction Cloud - Database Schema (PostgreSQL)
+// سیستم مدیریت یکپارچه مصالح عمرانی
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  PROJECT_MANAGER
+  CONTRACTOR_REP
+  WAREHOUSE_KEEPER
+  RESIDENT_ENGINEER
+}
+
+enum UnitOfMeasure {
+  KILOGRAM
+  TON
+  METER
+  SQUARE_METER
+  CUBIC_METER
+  NUMBER
+  LITER
+  BAG
+  ROLL
+  PIECE
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum TransactionType {
+  PURCHASE
+  DELIVERY
+  RETURN
+  ADJUSTMENT
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(WAREHOUSE_KEEPER)
+  phone     String?
+  isActive  Boolean  @default(true)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  managedProjects  Project[]      @relation("ProjectManager")
+  transactions     Transaction[]
+  invoiceApprovals Invoice[]
+}
+
+model MaterialCategory {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  materials Material[]
+}
+
+model Material {
+  id          String         @id @default(cuid())
+  name        String
+  code        String         @unique
+  categoryId  String
+  unit        UnitOfMeasure  @default(KILOGRAM)
+  minStock    Float          @default(0)
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  category     MaterialCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  transactions Transaction[]
+}
+
+model Project {
+  id          String         @id @default(cuid())
+  name        String
+  code        String         @unique
+  location    String?
+  status      ProjectStatus  @default(ACTIVE)
+  budget      Float          @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  managerId   String?
+  manager     User?          @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
+
+  transactions Transaction[]
+  invoices     Invoice[]
+}
+
+model Vendor {
+  id          String   @id @default(cuid())
+  companyName String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  taxId       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoices     Invoice[]
+  transactions Transaction[]
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  date          DateTime @default(now())
+  totalAmount   Float    @default(0)
+  taxAmount     Float    @default(0)
+  imageUrl      String?
+  description   String?
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  vendorId String
+  vendor   Vendor  @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  approvedById String?
+  approvedBy   User?    @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  type            TransactionType @default(PURCHASE)
+  quantity        Float
+  unitPrice       Float           @default(0)
+  totalPrice      Float           @default(0)
+  description     String?
+  deliveryPerson  String?
+  receivedBy      String?
+  date            DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  vendorId String
+  vendor   Vendor  @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  type      String   @default("string")
+  category  String   @default("general")
+  label     String?
+  options   String?
+  group     Int      @default(0)
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

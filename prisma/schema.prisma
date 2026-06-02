@@ -1,0 +1,447 @@
+// ═══════════════════════════════════════════════════════════════════════
+// ساخت‌یار — پلتفرم عملیات ساختمانی
+// Dynamic Role-Based Construction Operations Platform
+// ═══════════════════════════════════════════════════════════════════════
+// معماری: RBAC + ABAC + Workflow Engine + Dynamic Settings
+// دیتابیس: SQLite (توسعه) / PostgreSQL (تولید)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// بخش ۱: سیستم احراز هویت و مدیریت نقش داینامیک
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── کاربران ───
+model User {
+  id           String   @id @default(cuid())
+  name         String   // نام و نام خانوادگی
+  nationalCode String   @unique // کد ملی (یوزرنیم ورود)
+  mobile       String   // شماره موبایل (پسورد ورود)
+  email        String?  // ایمیل (اختیاری)
+  password     String   // رمز عبور هش‌شده (هشِ شماره موبایل)
+  phone        String?  // شماره تماس ثابت
+  avatar       String?  // مسیر تصویر پروفایل
+  isActive     Boolean  @default(true) // حساب فعال/غیرفعال
+  roleId           String?  // نقش سراسری کاربر
+  defaultProjectId String?  // پروژه پیش‌فرض هنگام ورود
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  role              Role?             @relation(fields: [roleId], references: [id])
+  defaultProject    Project?         @relation("UserDefaultProject", fields: [defaultProjectId], references: [id])
+  projectAccess     UserProject[]     // پروژه‌های قابل دسترسی
+  projectMemberships ProjectMember[]  // عضویت در پروژه‌ها با نقش مشخص
+  approvalLogs      ApprovalLog[]     // تاییدهای انجام‌شده
+  notifications     Notification[]    // نوتیفیکیشن‌ها
+  customFieldValues CustomFieldValue[] // مقادیر فیلدهای سفارشی
+  createdPurchases  Purchase[]        @relation("PurchaseCreator")
+  transactions      Transaction[]     @relation("TransactionCreator")
+  auditLogs         AuditLog[]        @relation("AuditLogUser")
+}
+
+// ─── نقش‌های داینامیک ───
+// مدیر سیستم می‌تواند نقش جدید تعریف کند
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // کلید نقش: SUPER_MANAGER, PROJECT_MANAGER, PURCHASER, WAREHOUSE_KEEPER, ADMIN
+  label       String   // نام نمایشی فارسی
+  description String?  // توضیحات نقش
+  color       String   @default("#7c3aed") // رنگ نمایشی
+  isSystem    Boolean  @default(false) // نقش سیستمی (غیرقابل حذف)
+  priority    Int      @default(0) // اولویت نمایش
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+  projectMembers ProjectMember[]
+}
+
+// ─── مجوزهای هر نقش (داینامیک) ───
+// هر نقش مجموعه‌ای از permission دارد که مدیر سیستم تعیین می‌کند
+model RolePermission {
+  id         String @id @default(cuid())
+  roleId     String
+  resource   String // منبع: projects, invoices, vendors, transactions, warehouse, reports, settings, users
+  action     String // عملیات: view, create, edit, delete, approve, export
+  scope      String @default("all") // محدوده: all, own, assigned, project
+  // all = همه موارد
+  // own = فقط موارد خودش
+  // assigned = فقط موارد اختصاص‌داده‌شده
+  // project = فقط پروژه‌های خودش
+
+  roleIdToStr Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, resource, action])
+}
+
+// ─── دسترسی کاربر به پروژه‌ها (ABAC) ───
+// یک کاربر ممکن است فقط به پروژه‌های خاصی دسترسی داشته باشد
+model UserProject {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  role      String   @default("viewer") // owner, manager, viewer
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+// ─── جدول حیاتی: عضویت پروژه با نقش مشخص ───
+// هر کاربر در هر پروژه فقط یک نقش می‌تواند داشته باشد
+// مثال: رضا در پروژه الف «مسئول خرید» و در پروژه ب «مدیر پروژه»
+model ProjectMember {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  roleId    String   // نقش کاربر در این پروژه خاص
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role    Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// بخش ۲: هسته اصلی — پروژه‌ها، تامین‌کنندگان، فاکتورها
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── پروژه‌های ساختمانی ───
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique // کد پروژه
+  location    String   @default("") // محل پروژه
+  status      String   @default("active") // active, completed, on_hold, cancelled
+  budget      Float    @default(0) // بودجه پروژه
+  startDate   DateTime? // تاریخ شروع
+  endDate     DateTime? // تاریخ پایان
+  description String?  // توضیحات پروژه
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // مسئولین پروژه
+  managerId           String?  // مدیر پروژه
+  purchaseResponsibleId String? // مسئول خرید
+  warehouseKeeperId   String?  // انباردار
+
+  purchases      Purchase[]
+  deliveries     DeliveryConfirmation[]
+  userAccess     UserProject[]
+  members        ProjectMember[]
+  workflowConfig WorkflowConfig[]
+  transactions   Transaction[]
+  defaultForUsers User[]        @relation("UserDefaultProject")
+}
+
+// ─── تامین‌کنندگان / فروشگاه‌ها (Vendor/Supplier یکپارچه) ───
+model Supplier {
+  id               String   @id @default(cuid())
+  companyName      String   // نام فروشگاه
+  contactName      String   @default("") // نام فروشنده / شخص تماس
+  phone            String   @default("") // تلفن
+  mobile           String?  // موبایل
+  email            String?  // ایمیل
+  address          String?  // آدرس
+  taxId            String?  // شماره مالیاتی
+  bankAccount      String?  // شماره حساب بانکی
+  settlementTerms  String?  // شرایط تسویه
+  debtCeiling      Float    @default(0) // سقف بدهی
+  isActive         Boolean  @default(true) // فعال/غیرفعال
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  purchases    Purchase[]
+  transactions Transaction[]
+}
+
+// ─── خرید / فاکتور ───
+model Purchase {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique // شماره فاکتور
+  projectId     String
+  supplierId    String
+  purchaseDate  DateTime // تاریخ خرید
+  dueDate       DateTime // سررسید پرداخت
+  totalAmount   Float    @default(0)
+  paidAmount    Float    @default(0)
+  status        String   @default("pending") // pending, partial, paid, overdue, draft, submitted, approved, rejected
+  invoiceImage  String?  // تصویر فاکتور
+  description   String?  // توضیحات
+  createdById   String?  // چه کسی ثبت کرده
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  paymentMethod  String?   // CASH, CHECK, CREDIT
+  settlementDate DateTime? // تاریخ تسویه
+  taxAmount      Float     @default(0) // مالیات
+  pdfUrl         String?   // فایل PDF
+  waybillUrl     String?   // عکس بارنامه
+  deliveryReceiptUrl String?
+
+  project    Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  supplier   Supplier              @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  items      PurchaseItem[]
+  payments   Payment[]
+  delivery   DeliveryConfirmation?
+  reminders  ReminderLog[]
+  approvals  ApprovalLog[]
+  createdBy  User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull, name: "PurchaseCreator")
+}
+
+// ─── اقلام فاکتور ───
+model PurchaseItem {
+  id           String  @id @default(cuid())
+  purchaseId   String
+  materialId   String? // ارتباط با مصالح (اختیاری)
+  materialName String  // نام کالا
+  quantity     Float   // تعداد
+  unit         String  // واحد
+  unitPrice    Float   // قیمت واحد
+  totalPrice   Float   // قیمت کل
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+}
+
+// ─── تأیید تحویل ───
+model DeliveryConfirmation {
+  id           String   @id @default(cuid())
+  purchaseId   String   @unique
+  projectId    String
+  deliveryDate DateTime @default(now())
+  confirmedBy  String
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ─── پرداخت‌ها ───
+model Payment {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  amount      Float    // مبلغ پرداخت
+  method      String   @default("CASH") // CASH, CHECK, CREDIT
+  status      String   @default("PENDING") // PENDING, PAID, PARTIAL, OVERDUE, CANCELLED
+  paymentDate DateTime @default(now())
+  dueDate     DateTime? // سررسید چک
+  checkNumber String?  // شماره چک
+  bankName    String?  // نام بانک
+  note        String?  // یادداشت
+  createdAt   DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+}
+
+// ─── لاگ هشدارهای هوشمند ───
+model ReminderLog {
+  id           String   @id @default(cuid())
+  purchaseId   String
+  reminderType String   // 7_day, 3_day, due_day, overdue
+  sentAt       DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// بخش ۳: مدیریت مصالح و انبار
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── دسته‌بندی مصالح ───
+model MaterialCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique // نام دسته‌بندی
+  description String?  // توضیحات
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  materials Material[]
+}
+
+// ─── مصالح ───
+model Material {
+  id          String   @id @default(cuid())
+  name        String   // نام مصالح
+  code        String   @unique // کد مصالح
+  categoryId  String   // دسته‌بندی
+  unit        String   @default("NUMBER") // واحد اندازه‌گیری
+  minStock    Float    @default(0) // حداقل موجودی
+  description String?  // توضیحات
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category     MaterialCategory @relation(fields: [categoryId], references: [id])
+  transactions Transaction[]
+}
+
+// ─── تراکنش‌های انبار ───
+// شامل: خرید، تحویل، مرجوعی، تعدیل، مصرف
+model Transaction {
+  id                String   @id @default(cuid())
+  type              String   @default("PURCHASE") // PURCHASE, DELIVERY, RETURN, ADJUSTMENT, CONSUMPTION
+  materialId        String   // مصالح
+  projectId         String   // پروژه
+  supplierId        String?  // تامین‌کننده (اختیاری)
+  purchaseId        String?  // فاکتور مرتبط (اختیاری)
+  quantity          Float    // مقدار
+  unitPrice         Float    @default(0) // قیمت واحد
+  totalPrice        Float    @default(0) // قیمت کل
+  description       String?  // توضیحات
+  deliveryPerson    String?  // تحویل‌دهنده
+  receivedBy        String?  // گیرنده
+  warehouseConfirmed Boolean @default(false) // تایید انباردار
+  actualQuantity    Float?   // مقدار واقعی تحویل
+  discrepancy       String?  // مغایرت
+  date              DateTime @default(now()) // تاریخ تراکنش
+  userId            String?  // ثبت‌کننده
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  material  Material  @relation(fields: [materialId], references: [id])
+  project   Project   @relation(fields: [projectId], references: [id])
+  supplier  Supplier? @relation(fields: [supplierId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id], name: "TransactionCreator")
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// بخش ۴: Workflow Engine — تایید چندمرحله‌ای
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── تنظیمات ورک‌فلو پروژه ───
+// مدیر سیستم تعیین می‌کند فاکتور چه مراحلی را طی کند
+model WorkflowConfig {
+  id          String @id @default(cuid())
+  projectId   String // برای کدام پروژه
+  stepOrder   Int    // ترتیب مرحله (۱، ۲، ۳...)
+  stepName    String // نام مرحله: تایید مدیر پروژه، تایید مالی، تایید انباردار
+  requiredRole String // چه نقشی باید تایید کند
+  isRequired  Boolean @default(true) // آیا این مرحله الزامی است
+  createdAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ─── لاگ تاییدها ───
+// هر تایید یا رد ثبت می‌شود
+model ApprovalLog {
+  id         String   @id @default(cuid())
+  purchaseId String
+  userId     String   // چه کسی تایید/رد کرد
+  action     String   // approve, reject, submit, comment
+  stepName   String?  // نام مرحله ورک‌فلو
+  comment    String?  // توضیحات
+  createdAt  DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// بخش ۵: نوتیفیکیشن‌ها و هشدارها
+// ═══════════════════════════════════════════════════════════════════════
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info") // info, warning, error, success
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── هشدارهای سیستم ───
+model Alert {
+  id          String   @id @default(cuid())
+  title       String   // عنوان هشدار
+  message     String   // پیام هشدار
+  type        String   @default("info") // info, warning, danger
+  category    String   @default("general") // due_date, low_stock, payment, system, general
+  triggerDate DateTime // تاریخ فعال‌سازی
+  isRead      Boolean  @default(false) // خوانده‌شده
+  projectId   String?  // پروژه مرتبط
+  purchaseId  String?  // فاکتور مرتبط
+  userId      String?  // کاربر مقصد
+  createdAt   DateTime @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// بخش ۶: Audit Log — ثبت عملیات‌های سیستم
+// ═══════════════════════════════════════════════════════════════════════
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  // چه کسی
+  action    String   // چه عملی: CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+  entity    String   // روی چه موجودیتی: User, Project, Purchase, etc.
+  entityId  String?  // شناسه موجودیت
+  projectId String?  // در کدام پروژه
+  details   String?  // جزئیات (JSON)
+  ipAddress String?  // آدرس IP
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull, name: "AuditLogUser")
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// بخش ۷: Dynamic Settings Engine
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── تنظیمات سیستم (Key-Value) ───
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique // کلید تنظیم
+  value     String   // مقدار (JSON string)
+  category  String   @default("general") // دسته‌بندی: general, alert, notification, appearance, workflow
+  label     String   // نام نمایشی
+  type      String   @default("text") // text, number, boolean, color, select, json
+  options   String?  // گزینه‌ها (JSON array for select type)
+  isPublic  Boolean  @default(false) // آیا در API عمومی نمایش داده شود
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── فیلدهای سفارشی ───
+// مدیر سیستم بتواند فیلد جدید به فرم‌ها اضافه کند
+model CustomField {
+  id          String @id @default(cuid())
+  entity      String // روی کدام موجودیت: purchase, supplier, project, delivery
+  fieldName   String // نام فیلد
+  label       String // نام نمایشی
+  type        String @default("text") // text, number, date, select, checkbox
+  options     String? // گزینه‌ها (JSON array)
+  required    Boolean @default(false)
+  sortOrder   Int    @default(0)
+  createdAt   DateTime @default(now())
+
+  values CustomFieldValue[]
+}
+
+// ─── مقادیر فیلدهای سفارشی ───
+model CustomFieldValue {
+  id             String @id @default(cuid())
+  customFieldId  String
+  entityId       String // شناسه موجودیت (purchase id, supplier id, etc.)
+  value          String
+  userId         String? // کاربری که مقدار داده
+
+  customField CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
