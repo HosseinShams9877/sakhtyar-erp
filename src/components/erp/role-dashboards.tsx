@@ -1111,14 +1111,13 @@ useEffect(() => {
   
     // گرفتن تعداد فاکتورهای اصلاحی
     useEffect(() => {
-      fetch('/api/invoices?type=corrective&pageSize=1')
+      const projectId = activeProject?.id || '';
+      const url = `/api/invoices?type=corrective${projectId ? `&projectId=${projectId}` : ''}&pageSize=1`;
+      fetch(url)
         .then(res => res.json())
-        .then(data => {
-          setCorrectiveCount(data.total || 0);
-        })
+        .then(data => setCorrectiveCount(data.total || 0))
         .catch(() => setCorrectiveCount(0));
-    }, []);
-  
+    }, [activeProject?.id]);
     // گرفتن تعداد تامین‌کنندگان جدید (فعال)
     useEffect(() => {
       fetch('/api/vendors?isActive=true')
