@@ -11,19 +11,20 @@ import {
   ScanBarcode,
   Package,
   AlertTriangle,
-  ShoppingBag,
+  ShoppingBag,ClipboardList
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════
    تایپ‌ها
    ═══════════════════════════════════════════════════════════ */
 
-type PageKey = 'dashboard' | 'projects' | 'invoices' | 'dues' | 'vendors' | 'warehouse' | 'reports' | 'users' | 'permissions' | 'workflow' | 'settings' | 'materials';
+type PageKey = 'dashboard' | 'projects' | 'invoices' |'shortage' | 'dues' | 'vendors' | 'warehouse' | 'reports' | 'users' | 'permissions' | 'workflow' | 'settings' | 'materials';
 
 interface BottomNavItem {
   key: PageKey;
   label: string;
   icon: React.ElementType;
+  isAction?: boolean;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -38,9 +39,9 @@ const PURCHASER_NAV: BottomNavItem[] = [
 ];
 
 const WAREHOUSE_KEEPER_NAV: BottomNavItem[] = [
-  { key: 'warehouse', label: 'اسکن/تحویل', icon: ScanBarcode },
-  { key: 'materials', label: 'موجودی انبار', icon: Package },
-  { key: 'dashboard', label: 'مغایرت‌ها', icon: AlertTriangle },
+  { key: 'dashboard', label: 'میزکار', icon: Home },        // صفحه اصلی
+  { key: 'shortage', label: 'ثبت کسری', icon: AlertTriangle, isAction: true }, // باز کردن دیالوگ
+  { key: 'reports', label: 'گزارشات', icon: ClipboardList }, // صفحه گزارشات
 ];
 
 /* ═══════════════════════════════════════════════════════════
@@ -52,14 +53,23 @@ interface BottomNavProps {
   role: string;
   activePage: PageKey;
   onPageChange: (page: PageKey) => void;
+  onShortageClick?: () => void;
 }
 
-export default function BottomNav({ role, activePage, onPageChange }: BottomNavProps) {
+export default function BottomNav({ role, activePage, onPageChange , onShortageClick  }: BottomNavProps) {
   // فقط برای نقش‌های مشخص‌شده نمایش داده شود (همیشه — این نقش‌ها سایدبار ندارند)
   if (role !== 'PURCHASER' && role !== 'WAREHOUSE_KEEPER') return null;
 
   const navItems = role === 'PURCHASER' ? PURCHASER_NAV : WAREHOUSE_KEEPER_NAV;
   const roleColor = role === 'PURCHASER' ? 'amber' : 'emerald';
+
+  const handleClick = (item: BottomNavItem) => {
+    if (item.key === 'shortage' && onShortageClick) {
+      onShortageClick();
+    } else {
+      onPageChange(item.key);
+    }
+  };
 
   return (
     <motion.nav
@@ -77,7 +87,7 @@ export default function BottomNav({ role, activePage, onPageChange }: BottomNavP
           return (
             <button
               key={item.key}
-              onClick={() => onPageChange(item.key)}
+              onClick={() => handleClick(item)}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 min-w-[64px] min-h-[48px] rounded-xl transition-all duration-200',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',

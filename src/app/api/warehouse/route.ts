@@ -1,11 +1,13 @@
 // ─── API انبار / موجودی ───
-// مدل WarehouseStock و Material حذف شده‌اند
-// موجودی از PurchaseItem + DeliveryConfirmation استخراج می‌شود
-// (تکرار /api/inventory با ساختار ساده‌تر)
+// موجودی از Material + Transaction استخراج می‌شود
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { requirePermission } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
+  const auth = await requirePermission('warehouse:view');
+  if (!auth.success) return auth.response;
+
   try {
     const url = new URL(req.url);
     const projectId = url.searchParams.get('projectId') || '';
@@ -26,67 +28,49 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch purchases with items and deliveries for this project
-    const purchases = await db.purchase.findMany({
+    // ✅ دریافت مصالح پروژه به همراه تراکنش‌های خرید تأیید شده
+    const materials = await db.material.findMany({
       where: { projectId },
       include: {
-        items: true,
-        delivery: true,
-        supplier: { select: { id: true, companyName: true } },
+        category: true,
+        transactions: {
+          where: {
+            type: 'PURCHASE',
+            warehouseConfirmed: true
+          }
+        }
       },
-      orderBy: { purchaseDate: 'desc' },
+      orderBy: { name: 'asc' }
     });
 
-    // Build stock entries from purchase items
-    const stockMap = new Map<string, {
-      materialName: string;
-      unit: string;
-      quantity: number;
-      deliveredQuantity: number;
-      reservedQuantity: number;
-      supplierId: string;
-      supplierName: string;
-    }>();
-
-    for (const purchase of purchases) {
-      const isDelivered = purchase.delivery !== null;
-      for (const item of purchase.items) {
-        const key = `${item.materialName}-${item.unit}`;
-        const entry = stockMap.get(key);
-        if (entry) {
-          entry.quantity += item.quantity;
-          if (isDelivered) entry.deliveredQuantity += item.quantity;
-        } else {
-          stockMap.set(key, {
-            materialName: item.materialName,
-            unit: item.unit,
-            quantity: item.quantity,
-            deliveredQuantity: isDelivered ? item.quantity : 0,
-            reservedQuantity: 0,
-            supplierId: purchase.supplierId,
-            supplierName: purchase.supplier?.companyName || 'نامشخص',
-          });
-        }
-      }
-    }
-
-    const stocks = Array.from(stockMap.entries()).map(([key, val], idx) => ({
-      id: `stock-${idx}`,
-      projectId,
-      materialId: key,
-      materialName: val.materialName,
-      unit: val.unit,
-      quantity: val.deliveredQuantity,
-      reservedQuantity: val.reservedQuantity,
-      availableQuantity: val.deliveredQuantity - val.reservedQuantity,
-      totalPurchased: val.quantity,
-      pendingDelivery: val.quantity - val.deliveredQuantity,
-      supplierId: val.supplierId,
-      supplierName: val.supplierName,
-      project: { id: project.id, name: project.name, location: project.location },
-    }));
+    // ✅ ساخت موجودی انبار از روی مصالح و تراکنش‌ها
+    const stocks = materials.map((material, idx) => {
+      // محاسبه مجموع مقدار خریدهای تأیید شده
+      const totalPurchased = material.transactions.reduce((sum, t) => sum + t.quantity, 0);
+      
+      // TODO: مصرف و سایر تراکنش‌ها را هم باید محاسبه کنی
+      const consumed = 0; // بعداً از تراکنش‌های CONSUMPTION محاسبه کن
+      const quantity = totalPurchased - consumed;
+      
+      return {
+        id: `stock-${idx}`,
+        projectId,
+        materialId: material.id,
+        materialName: material.name,
+        unit: material.unit,
+        minStock: material.minStock,
+        quantity: quantity,
+        reservedQuantity: 0,
+        availableQuantity: quantity,
+        totalPurchased: totalPurchased,
+        pendingDelivery: 0,
+        category: material.category?.name,
+        project: { id: project.id, name: project.name, location: project.location },
+      };
+    });
 
     return NextResponse.json(stocks);
+    
   } catch (error: any) {
     console.error('Warehouse stock list error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -94,7 +78,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // مدل WarehouseStock حذف شده — ثبت موجودی از طریق تأیید تحویل
+  const auth = await requirePermission('warehouse:create');
+  if (!auth.success) return auth.response;
+  
   return NextResponse.json(
     { error: 'ثبت مستقیم موجودی انبار پشتیبانی نمی‌شود — از تأیید تحویل استفاده کنید (/api/deliveries)' },
     { status: 501 }
@@ -102,6 +88,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const auth = await requirePermission('warehouse:create');
+  if (!auth.success) return auth.response;
+  
   return NextResponse.json(
     { error: 'ویرایش مستقیم موجودی انبار پشتیبانی نمی‌شود' },
     { status: 501 }

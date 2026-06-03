@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { useProject } from '@/components/project-context';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -26,6 +27,7 @@ import { UNIT_LABELS, toPersianDigits } from '@/lib/rbac';
 
 interface Material {
   id: string; name: string; code: string; unit: string; minStock: number; description: string | null;
+  stock: number;
   category: { id: string; name: string }; categoryId: string;
 }
 interface Category { id: string; name: string; }
@@ -34,6 +36,7 @@ const emptyForm = { name: '', code: '', categoryId: '', unit: 'KILOGRAM', minSto
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
+  const { activeProject } = useProject();
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
@@ -46,12 +49,13 @@ export default function MaterialsPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/materials?search=${search}&categoryId=${filterCat}`);
+      const projectId = activeProject?.id || '';
+      const res = await fetch(`/api/materials?search=${search}&categoryId=${filterCat}&projectId=${projectId}`);
       const data = await res.json();
       setMaterials(data.materials || []);
       setCategories(data.categories || []);
     } catch { } finally { setLoading(false); }
-  }, [search, filterCat]);
+  }, [search, filterCat , activeProject?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -189,59 +193,43 @@ export default function MaterialsPage() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="text-right text-xs font-semibold">کد</TableHead>
-                  <TableHead className="text-right text-xs font-semibold">نام</TableHead>
-                  <TableHead className="text-right text-xs font-semibold">دسته‌بندی</TableHead>
-                  <TableHead className="text-right text-xs font-semibold">واحد</TableHead>
-                  <TableHead className="text-right text-xs font-semibold">حداقل موجودی</TableHead>
-                  <TableHead className="text-right text-xs font-semibold">عملیات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  [...Array(5)].map((_, i) => (<TableRow key={i}>{[...Array(6)].map((_, j) => (<TableCell key={j}><div className="h-4 bg-muted/50 rounded animate-pulse" /></TableCell>))}</TableRow>))
-                ) : materials.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">یافت نشد</TableCell></TableRow>
-                ) : (
-                  materials.map((m) => (
-                    <TableRow key={m.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell><Badge variant="outline" className="text-[10px] font-mono">{toPersianDigits(m.code)}</Badge></TableCell>
-                      <TableCell className="font-semibold text-sm">{m.name}</TableCell>
-                      <TableCell className="text-sm">{m.category?.name || '—'}</TableCell>
-                      <TableCell className="text-sm">{UNIT_LABELS[m.unit] || m.unit}</TableCell>
-                      <TableCell className="text-sm">{toPersianDigits(m.minStock)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg hover:bg-blue-50 hover:text-blue-600" onClick={() => handleEdit(m)}>
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg hover:bg-rose-50 hover:text-rose-600">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent dir="rtl">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>حذف مصالح</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  آیا از حذف مصالح &laquo;{m.name}&raquo; اطمینان دارید؟ این عمل قابل بازگشت نیست.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>انصراف</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(m.id)} className="bg-rose-600 hover:bg-rose-700">حذف</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
+            <TableHeader>
+  <TableRow className="bg-muted/40 hover:bg-muted/40">
+    <TableHead className="text-right text-xs font-semibold">کد</TableHead>
+    <TableHead className="text-right text-xs font-semibold">نام</TableHead>
+    <TableHead className="text-right text-xs font-semibold">دسته‌بندی</TableHead>
+    <TableHead className="text-right text-xs font-semibold">واحد</TableHead>
+    <TableHead className="text-right text-xs font-semibold">موجودی فعلی</TableHead>
+    <TableHead className="text-right text-xs font-semibold">حداقل موجودی</TableHead>
+    <TableHead className="text-right text-xs font-semibold">عملیات</TableHead>
+  </TableRow>
+</TableHeader>
+<TableBody>
+  {loading ? (
+    [...Array(5)].map((_, i) => (<TableRow key={i}>{[...Array(7)].map((_, j) => (<TableCell key={j}><div className="h-4 bg-muted/50 rounded animate-pulse" /></TableCell>))}</TableRow>))
+  ) : materials.length === 0 ? (
+    <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">یافت نشد</TableCell></TableRow>
+  ) : (
+    materials.map((m) => (
+      <TableRow key={m.id} className="hover:bg-muted/30 transition-colors">
+        <TableCell><Badge variant="outline" className="text-[10px] font-mono">{toPersianDigits(m.code)}</Badge></TableCell>
+        <TableCell className="font-semibold text-sm">{m.name}</TableCell>
+        <TableCell className="text-sm">{m.category?.name || '—'}</TableCell>
+        <TableCell className="text-sm">{UNIT_LABELS[m.unit] || m.unit}</TableCell>
+        {/* ✅ ستون موجودی فعلی با رنگ‌بندی */}
+        <TableCell className="text-sm">
+          <span className={m.stock <= m.minStock ? 'text-red-600 font-bold' : 'text-emerald-600 font-medium'}>
+            {toPersianDigits(m.stock)} {UNIT_LABELS[m.unit] || m.unit}
+          </span>
+        </TableCell>
+        <TableCell className="text-sm">{toPersianDigits(m.minStock)}</TableCell>
+        <TableCell>
+          {/* دکمه‌های عملیات */}
+        </TableCell>
+      </TableRow>
+    ))
+  )}
+</TableBody>
             </Table>
           </div>
         </CardContent>

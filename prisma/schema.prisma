@@ -131,6 +131,7 @@ model Project {
   description String?  // توضیحات پروژه
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
 
   // مسئولین پروژه
   managerId           String?  // مدیر پروژه
@@ -142,6 +143,7 @@ model Project {
   userAccess     UserProject[]
   members        ProjectMember[]
   workflowConfig WorkflowConfig[]
+  materials      Material[]
   transactions   Transaction[]
   defaultForUsers User[]        @relation("UserDefaultProject")
 }
@@ -275,16 +277,19 @@ model MaterialCategory {
 // ─── مصالح ───
 model Material {
   id          String   @id @default(cuid())
-  name        String   // نام مصالح
-  code        String   @unique // کد مصالح
-  categoryId  String   // دسته‌بندی
-  unit        String   @default("NUMBER") // واحد اندازه‌گیری
-  minStock    Float    @default(0) // حداقل موجودی
-  description String?  // توضیحات
+  name        String
+  code        String   @unique
+  categoryId  String
+  unit        String   @default("NUMBER")
+  projectId   String   @default("cmpvpymea002fi67g6029hpbv")
+  stock       Float    @default(0)
+  minStock    Float    @default(0)
+  description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   category     MaterialCategory @relation(fields: [categoryId], references: [id])
+  project      Project          @relation(fields: [projectId], references: [id])
   transactions Transaction[]
 }
 

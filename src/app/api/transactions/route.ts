@@ -1,101 +1,179 @@
 // ─── API تراکنش‌ها ───
-// مدل Transaction, WarehouseStock, Material حذف شده‌اند
-// تراکنش‌ها از خریدها و پرداخت‌ها استخراج می‌شوند
+// تراکنش‌های انبار برای محاسبه موجودی
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { requirePermission } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
+  const auth = await requirePermission('transactions:view');
+  if (!auth.success) return auth.response;
+
   try {
     const url = new URL(req.url);
     const projectId = url.searchParams.get('projectId') || '';
-    const supplierId = url.searchParams.get('supplierId') || '';
+    const materialId = url.searchParams.get('materialId') || '';
     const type = url.searchParams.get('type') || '';
 
-    // Build where clause for purchases
-    const purchaseWhere: Record<string, unknown> = {};
-    if (projectId) purchaseWhere.projectId = projectId;
-    if (supplierId) purchaseWhere.supplierId = supplierId;
+    // شرط جستجو
+    const where: any = {};
 
-    // Fetch purchases as "purchase transactions"
-    const purchases = await db.purchase.findMany({
-      where: purchaseWhere,
-      include: {
-        supplier: { select: { id: true, companyName: true } },
-        project: { select: { id: true, name: true } },
-        items: true,
-        payments: { orderBy: { paymentDate: 'desc' } },
-      },
-      orderBy: { purchaseDate: 'desc' },
-      take: 100,
-    });
-
-    // Build transaction-like records from purchases and payments
-    const transactions: any[] = [];
-
-    for (const purchase of purchases) {
-      // Filter by type
-      if (type && type !== 'PURCHASE' && type !== 'PAYMENT') continue;
-
-      if (!type || type === 'PURCHASE') {
-        transactions.push({
-          id: `purchase-${purchase.id}`,
-          type: 'PURCHASE',
-          date: purchase.purchaseDate,
-          description: purchase.description || `فاکتور ${purchase.invoiceNumber}`,
-          totalPrice: purchase.totalAmount,
-          quantity: purchase.items.reduce((sum, i) => sum + i.quantity, 0),
-          invoiceNumber: purchase.invoiceNumber,
-          status: purchase.status,
-          supplier: purchase.supplier,
-          project: purchase.project,
-          materialNames: purchase.items.map(i => i.materialName).join('، '),
-        });
-      }
-
-      if (!type || type === 'PAYMENT') {
-        for (const payment of purchase.payments) {
-          transactions.push({
-            id: `payment-${payment.id}`,
-            type: 'PAYMENT',
-            date: payment.paymentDate,
-            description: payment.note || `پرداخت فاکتور ${purchase.invoiceNumber}`,
-            totalPrice: payment.amount,
-            quantity: 1,
-            invoiceNumber: purchase.invoiceNumber,
-            supplier: purchase.supplier,
-            project: purchase.project,
-          });
-        }
-      }
+    if (projectId) {
+      where.projectId = projectId;
     }
 
-    // Sort by date descending
-    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (materialId) {
+      where.materialId = materialId;
+    }
+
+    if (type) {
+      where.type = type;
+    }
+
+    // ✅ دریافت تراکنش‌های انبار از جدول Transaction
+    const transactions = await db.transaction.findMany({
+      where,
+      include: {
+        material: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+            code: true,
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
+        supplier: {
+          select: {
+            id: true,
+            companyName: true,
+          }
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
 
     return NextResponse.json(transactions);
   } catch (error: any) {
+    console.error('Error in GET /api/transactions:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  // مدل Transaction حذف شده — ایجاد تراکنش از طریق خرید یا پرداخت
-  return NextResponse.json(
-    { error: 'تراکنش مستقل پشتیبانی نمی‌شود — از ثبت خرید یا پرداخت استفاده کنید' },
-    { status: 501 }
-  );
+  const auth = await requirePermission('transactions:create');
+  if (!auth.success) return auth.response;
+
+  try {
+    const body = await req.json();
+    const { type, materialId, projectId, quantity, unitPrice, description, supplierId, purchaseId } = body;
+
+    if (!type || !materialId || !projectId || !quantity) {
+      return NextResponse.json({ error: 'فیلدهای الزامی تکمیل نشده' }, { status: 400 });
+    }
+
+    // محاسبه totalPrice
+    const totalPrice = (unitPrice || 0) * quantity;
+
+    // ایجاد تراکنش
+    const transaction = await db.transaction.create({
+      data: {
+        type,
+        materialId,
+        projectId,
+        quantity,
+        unitPrice: unitPrice || 0,
+        totalPrice,
+        description,
+        supplierId,
+        purchaseId,
+        date: new Date(),
+      },
+      include: {
+        material: true,
+        project: true,
+      },
+    });
+
+    // ✅ به‌روزرسانی stock در جدول Material
+    if (type === 'PURCHASE') {
+      await db.material.update({
+        where: { id: materialId },
+        data: { stock: { increment: quantity } }
+      });
+    } else if (type === 'CONSUMPTION') {
+      await db.material.update({
+        where: { id: materialId },
+        data: { stock: { decrement: quantity } }
+      });
+    }
+
+    return NextResponse.json(transaction, { status: 201 });
+  } catch (error: any) {
+    console.error('Error in POST /api/transactions:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest) {
-  return NextResponse.json(
-    { error: 'تراکنش مستقل پشتیبانی نمی‌شود' },
-    { status: 501 }
-  );
+  const auth = await requirePermission('transactions:edit');
+  if (!auth.success) return auth.response;
+
+  try {
+    const body = await req.json();
+    const { id, warehouseConfirmed, actualQuantity, discrepancy } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'شناسه تراکنش الزامی است' }, { status: 400 });
+    }
+
+    // دریافت تراکنش قبلی
+    const oldTransaction = await db.transaction.findUnique({
+      where: { id },
+    });
+
+    if (!oldTransaction) {
+      return NextResponse.json({ error: 'تراکنش یافت نشد' }, { status: 404 });
+    }
+
+    // به‌روزرسانی تراکنش
+    const transaction = await db.transaction.update({
+      where: { id },
+      data: {
+        warehouseConfirmed,
+        actualQuantity,
+        discrepancy,
+      },
+    });
+
+    // ✅ اگر تأیید تحویل است و مقدار واقعی متفاوت است، stock را اصلاح کن
+    if (warehouseConfirmed && oldTransaction.type === 'PURCHASE' && actualQuantity) {
+      const diff = actualQuantity - oldTransaction.quantity;
+      if (diff !== 0) {
+        await db.material.update({
+          where: { id: oldTransaction.materialId },
+          data: { stock: { increment: diff } }
+        });
+      }
+    }
+
+    return NextResponse.json(transaction);
+  } catch (error: any) {
+    console.error('Error in PUT /api/transactions:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await requirePermission('transactions:delete');
+  if (!auth.success) return auth.response;
+
   return NextResponse.json(
-    { error: 'تراکنش مستقل پشتیبانی نمی‌شود' },
+    { error: 'حذف تراکنش مستقیم پشتیبانی نمی‌شود' },
     { status: 501 }
   );
 }

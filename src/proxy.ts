@@ -13,7 +13,7 @@ import { getToken } from 'next-auth/jwt';
 
 // ─── نقشه دسترسی API بر اساس نقش ───
 const API_ROLE_ACCESS: Record<string, string[]> = {
-  '/api/projects': ['SUPER_MANAGER', 'PROJECT_MANAGER' , 'PURCHASER' ],
+  '/api/projects': ['SUPER_MANAGER', 'PROJECT_MANAGER' , 'PURCHASER' ,'WAREHOUSE_KEEPER' ],
   '/api/invoices': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER'],
   '/api/vendors': ['SUPER_MANAGER', 'PURCHASER'],
   '/api/warehouse': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'WAREHOUSE_KEEPER'],

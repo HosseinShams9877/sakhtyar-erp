@@ -272,6 +272,8 @@ export async function PUT(req: NextRequest) {
     }
 
     const updateData: Record<string, unknown> = {};
+    
+    // فیلدهای اصلی
     if (rest.invoiceNumber !== undefined) updateData.invoiceNumber = rest.invoiceNumber;
     if (rest.projectId !== undefined) updateData.projectId = rest.projectId;
     if (rest.supplierId !== undefined) updateData.supplierId = rest.supplierId;
@@ -282,6 +284,14 @@ export async function PUT(req: NextRequest) {
     if (rest.status !== undefined) updateData.status = rest.status;
     if (rest.description !== undefined) updateData.description = rest.description;
     if (rest.invoiceImage !== undefined) updateData.invoiceImage = rest.invoiceImage;
+    
+    // ✅ فیلدهای جدید - اضافه کن
+    if (rest.paymentMethod !== undefined) updateData.paymentMethod = rest.paymentMethod;
+    if (rest.settlementDate !== undefined) updateData.settlementDate = rest.settlementDate ? new Date(rest.settlementDate) : null;
+    if (rest.taxAmount !== undefined) updateData.taxAmount = rest.taxAmount;
+    if (rest.pdfUrl !== undefined) updateData.pdfUrl = rest.pdfUrl;
+    if (rest.waybillUrl !== undefined) updateData.waybillUrl = rest.waybillUrl;
+    if (rest.deliveryReceiptUrl !== undefined) updateData.deliveryReceiptUrl = rest.deliveryReceiptUrl;
 
     if (items && Array.isArray(items)) {
       await db.purchaseItem.deleteMany({ where: { purchaseId: id } });

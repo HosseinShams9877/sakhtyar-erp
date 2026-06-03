@@ -26,7 +26,7 @@ import { signOut } from 'next-auth/react';
    تایپ‌ها
    ═══════════════════════════════════════════════════════════ */
 
-type PageKey = 'dashboard' | 'projects' | 'invoices' | 'dues' | 'vendors' | 'warehouse' | 'reports' | 'users' | 'permissions' | 'workflow' | 'settings' | 'materials';
+type PageKey = 'dashboard' | 'projects' | 'invoices' | 'dues' | 'vendors' | "shortage" | 'warehouse' | 'reports' | 'users' | 'permissions' | 'workflow' | 'settings' | 'materials';
 
 interface HeaderProps {
   currentPage: PageKey;

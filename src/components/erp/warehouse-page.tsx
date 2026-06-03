@@ -24,6 +24,7 @@ import {
   toPersianDigits, formatNumber, formatCurrency, formatDate,
   UNIT_LABELS, TRANSACTION_TYPE_LABELS, TRANSACTION_TYPE_COLORS,
 } from '@/lib/rbac';
+import { useProject } from '@/components/project-context';
 import { cn } from '@/lib/utils';
 
 // ─── Types ───
@@ -42,6 +43,9 @@ interface WarehouseStockItem {
   projectId: string;
   materialId: string;
   quantity: number;
+  materialName: string;      
+  unit: string;             
+  minStock?: number; 
   reservedQuantity: number;
   availableQuantity: number;
   createdAt: string;
@@ -157,8 +161,6 @@ const emptyConfirmForm = {
 // ─── Main Component ───
 
 export default function WarehousePage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [stocks, setStocks] = useState<WarehouseStockItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -171,21 +173,8 @@ export default function WarehousePage() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [confirmForm, setConfirmForm] = useState(emptyConfirmForm);
-
-  // ─── Load Projects ───
-
-  useEffect(() => {
-    async function loadProjects() {
-      try {
-        const res = await fetch('/api/projects');
-        const data = await res.json();
-        setProjects(Array.isArray(data) ? data : []);
-      } catch {
-        toast.error('خطا در بارگذاری پروژه‌ها');
-      }
-    }
-    loadProjects();
-  }, []);
+  const { activeProject } = useProject();
+  const selectedProjectId = activeProject?.id || '';
 
   // ─── Load Materials ───
 
@@ -212,21 +201,39 @@ export default function WarehousePage() {
     setLoadingStocks(true);
     try {
       const res = await fetch(`/api/warehouse?projectId=${selectedProjectId}`);
+      console.log('📡 API Response status:', res.status);
+      console.log('📡 API URL:', `/api/warehouse?projectId=${selectedProjectId}`);
+      
       if (res.ok) {
         const data = await res.json();
+        console.log('📦 Raw API Response (stocks):', data);
+        console.log('📦 Is Array?', Array.isArray(data));
+        console.log('📦 Length:', data.length);
+        
+        if (data.length > 0) {
+          console.log('📦 First item:', data[0]);
+          console.log('📦 First item material:', data[0].material);
+          console.log('📦 First item quantity:', data[0].quantity);
+        } else {
+          console.log('⚠️ No stock data returned from API');
+        }
+        
         setStocks(Array.isArray(data) ? data : []);
       } else {
         const err = await res.json();
+        console.error('❌ API Error:', err);
         toast.error(err.error || 'خطا در بارگذاری موجودی انبار');
         setStocks([]);
       }
-    } catch {
+    } catch (error) {
+      console.error('❌ Fetch error:', error);
       toast.error('خطا در بارگذاری موجودی انبار');
       setStocks([]);
     } finally {
       setLoadingStocks(false);
     }
   }, [selectedProjectId]);
+  
 
   // ─── Load Recent Transactions ───
 
@@ -261,20 +268,23 @@ export default function WarehousePage() {
   const totalItems = stocks.reduce((sum, s) => sum + s.quantity, 0);
   const totalDistinctMaterials = stocks.length;
   const lowStockItems = stocks.filter(
-    (s) => s.material && s.quantity < s.material.minStock
+    (s) => s.quantity < (s.minStock || 0)  // ✅ استفاده از minStock مستقیم
   ).length;
 
   // ─── Filtered Stocks ───
 
-  const filteredStocks = stocks.filter((s) => {
-    if (!stockSearch) return true;
-    const q = stockSearch.toLowerCase();
-    return (
-      s.material?.name?.toLowerCase().includes(q) ||
-      s.material?.code?.toLowerCase().includes(q) ||
-      s.material?.category?.name?.toLowerCase().includes(q)
-    );
-  });
+  const filteredStocks = (() => {
+    const filtered = stocks.filter((s) => {
+      if (!stockSearch) return true;
+      const q = stockSearch.toLowerCase();
+      return (
+        s.materialName?.toLowerCase().includes(q) ||  
+        s.material?.name?.toLowerCase().includes(q) ||
+        s.material?.code?.toLowerCase().includes(q)
+      );
+    });
+    return filtered;
+  })();
 
   // ─── Filtered Transactions (limit 20 recent) ───
 
@@ -382,18 +392,6 @@ export default function WarehousePage() {
           </p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-            <SelectTrigger className="w-52 rounded-xl">
-              <SelectValue placeholder="انتخاب پروژه" />
-            </SelectTrigger>
-            <SelectContent>
-              {projects.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Button
             className="gap-2 gradient-primary hover:opacity-90 rounded-xl shadow-soft"
             disabled={!selectedProjectId}
@@ -490,73 +488,74 @@ export default function WarehousePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loadingStocks ? (
-                      [...Array(5)].map((_, i) => (
-                        <TableRow key={i}>
-                          {[...Array(6)].map((_, j) => (
-                            <TableCell key={j}>
-                              <div className="h-4 bg-muted/50 rounded animate-pulse" />
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : filteredStocks.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                          {stockSearch ? 'مصالحی با این عبارت یافت نشد' : 'موجودی انبار برای این پروژه ثبت نشده است'}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredStocks.map((stock) => {
-                        const isLow = stock.material && stock.quantity < stock.material.minStock;
-                        return (
-                          <TableRow
-                            key={stock.id}
-                            className={cn(
-                              'hover:bg-muted/30 transition-colors',
-                              isLow && 'bg-rose-50/50 dark:bg-rose-950/20'
-                            )}
-                          >
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-sm">{stock.material?.name || '---'}</span>
-                                {isLow && (
-                                  <Badge
-                                    variant="destructive"
-                                    className="text-[10px] gap-1 px-1.5 py-0"
-                                  >
-                                    <AlertTriangle className="w-3 h-3" />
-                                    کم‌موجی
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
-                                {stock.material?.category?.name || ''}
-                              </p>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {UNIT_LABELS[stock.material?.unit] || stock.material?.unit || '---'}
-                            </TableCell>
-                            <TableCell className="text-sm font-semibold">
-                              {toPersianDigits(formatNumber(stock.quantity))}
-                            </TableCell>
-                            <TableCell className="text-sm text-amber-600 dark:text-amber-400">
-                              {toPersianDigits(formatNumber(stock.reservedQuantity))}
-                            </TableCell>
-                            <TableCell className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                              {toPersianDigits(formatNumber(stock.availableQuantity))}
-                            </TableCell>
-                            <TableCell>
-                              <StockLevelBar
-                                available={stock.availableQuantity}
-                                total={stock.quantity}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
+  {loadingStocks ? (
+    [...Array(5)].map((_, i) => (
+      <TableRow key={i}>
+        {[...Array(6)].map((_, j) => (
+          <TableCell key={j}>
+            <div className="h-4 bg-muted/50 rounded animate-pulse" />
+          </TableCell>
+        ))}
+      </TableRow>
+    ))
+  ) : filteredStocks.length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+        {stockSearch ? 'مصالحی با این عبارت یافت نشد' : 'موجودی انبار برای این پروژه ثبت نشده است'}
+      </TableCell>
+    </TableRow>
+  ) : (
+    filteredStocks.map((stock) => {
+      // ✅ استفاده از فیلدهای مستقیم API (بدون stock.material)
+      const materialName = stock.materialName || '---';
+      const unit = stock.unit || '---';
+      const quantity = stock.quantity || 0;
+      const reservedQuantity = stock.reservedQuantity || 0;
+      const availableQuantity = stock.availableQuantity || 0;
+      const isLow = quantity < (stock.minStock || 0);
+      
+      return (
+        <TableRow
+          key={stock.id}
+          className={cn(
+            'hover:bg-muted/30 transition-colors',
+            isLow && 'bg-rose-50/50 dark:bg-rose-950/20'
+          )}
+        >
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm">{materialName}</span>
+              {isLow && (
+                <Badge variant="destructive" className="text-[10px] gap-1 px-1.5 py-0">
+                  <AlertTriangle className="w-3 h-3" />
+                  کم‌موجی
+                </Badge>
+              )}
+            </div>
+          </TableCell>
+          <TableCell className="text-sm">
+            {UNIT_LABELS[unit] || unit}
+          </TableCell>
+          <TableCell className="text-sm font-semibold">
+            {toPersianDigits(formatNumber(quantity))}
+          </TableCell>
+          <TableCell className="text-sm text-amber-600 dark:text-amber-400">
+            {toPersianDigits(formatNumber(reservedQuantity))}
+          </TableCell>
+          <TableCell className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+            {toPersianDigits(formatNumber(availableQuantity))}
+          </TableCell>
+          <TableCell>
+            <StockLevelBar
+              available={availableQuantity}
+              total={quantity}
+            />
+          </TableCell>
+        </TableRow>
+      );
+    })
+  )}
+</TableBody>
                 </Table>
               </div>
             </CardContent>

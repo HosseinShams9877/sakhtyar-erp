@@ -58,7 +58,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
    تایپ‌ها
    ═══════════════════════════════════════════════════════════ */
 
-type PageKey = 'dashboard' | 'projects' | 'invoices' | 'dues' | 'vendors' | 'warehouse' | 'reports' | 'users' | 'permissions' | 'workflow' | 'settings' | 'materials';
+type PageKey = 'dashboard' | 'projects' | 'invoices' | 'dues' |"shortage" |'vendors' | 'warehouse' | 'reports' | 'users' | 'permissions' | 'workflow' | 'settings' | 'materials';
 
 interface SidebarProps {
   currentPage: PageKey;
