@@ -1,10 +1,66 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, requirePermission } from '@/lib/api-auth';
 
-// GET /api/deliveries — List delivery confirmations with purchase details
-export async function GET(_req: NextRequest) {
+// ─── GET /api/deliveries ───
+// اگر query parameter "pending=true" باشد، فاکتورهای پرداخت شده و بدون تحویل را برمی‌گرداند
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth();
+  if (!auth.success) return auth.response;
+
   try {
+    const url = new URL(req.url);
+    const projectId = url.searchParams.get('projectId') || '';
+    const pending = url.searchParams.get('pending') === 'true';
+
+    // ─── حالت pending: فاکتورهای پرداخت شده که هنوز تحویل نشده‌اند ───
+    if (pending) {
+      const where: any = {
+        status: 'paid',           // فقط پرداخت شده‌ها
+        delivery: null,           // هنوز تحویل ثبت نشده
+      };
+      
+      if (projectId) {
+        where.projectId = projectId;
+      }
+
+      const purchases = await db.purchase.findMany({
+        where,
+        include: {
+          supplier: {
+            select: { id: true, companyName: true, contactName: true, phone: true }
+          },
+          project: {
+            select: { id: true, name: true, location: true }
+          },
+          items: true,
+        },
+        orderBy: { purchaseDate: 'desc' },
+      });
+
+      // تبدیل به فرمت مورد نیاز انباردار
+      const pendingDeliveries = purchases.map(purchase => ({
+        id: purchase.id,
+        invoiceNumber: purchase.invoiceNumber,
+        supplierName: purchase.supplier.companyName,
+        supplierContact: purchase.supplier.contactName,
+        purchaseDate: purchase.purchaseDate,
+        totalAmount: purchase.totalAmount,
+        items: purchase.items.map(item => ({
+          materialId: item.materialId,
+          materialName: item.materialName,
+          quantity: item.quantity,
+          unit: item.unit,
+        })),
+        status: 'pending_delivery',
+      }));
+
+      return NextResponse.json({ deliveries: pendingDeliveries });
+    }
+
+    // ─── حالت عادی: تاریخچه تحویل‌های ثبت شده ───
     const deliveries = await db.deliveryConfirmation.findMany({
+      where: projectId ? { projectId } : undefined,
       include: {
         purchase: {
           include: {
@@ -18,47 +74,46 @@ export async function GET(_req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json(deliveries);
+    return NextResponse.json({ history: deliveries });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'خطای سرور';
+    console.error('GET /api/deliveries error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-// POST /api/deliveries — Create delivery confirmation
+// ─── POST /api/deliveries ───
 export async function POST(req: NextRequest) {
+  console.log('🔍 POST /api/deliveries called');
+  const auth = await requirePermission('deliveries:confirm');
+  if (!auth.success) return auth.response;
+
   try {
     const body = await req.json();
-    const { purchaseId, projectId, deliveryDate, confirmedBy, notes } = body;
+    const { deliveryId, confirmedBy, image, notes } = body;
 
-    if (!purchaseId || !projectId || !confirmedBy) {
+    // پیدا کردن فاکتور با آیتم‌ها
+    const purchase = await db.purchase.findUnique({
+      where: { id: deliveryId },
+      include: { 
+        items: true,
+        project: { select: { id: true } }
+      }
+    });
+
+    if (!purchase) {
+      return NextResponse.json({ error: 'خرید یافت نشد' }, { status: 404 });
+    }
+
+    if (purchase.status !== 'paid') {
       return NextResponse.json(
-        { error: 'شناسه خرید، شناسه پروژه و نام تأییدکننده الزامی است' },
+        { error: 'فاکتور هنوز پرداخت نشده است، قابل تحویل نیست' },
         { status: 400 }
       );
     }
 
-    // Check purchase exists
-    const purchase = await db.purchase.findUnique({ where: { id: purchaseId } });
-    if (!purchase) {
-      return NextResponse.json(
-        { error: 'خرید یافت نشد' },
-        { status: 404 }
-      );
-    }
-
-    // Check project exists
-    const project = await db.project.findUnique({ where: { id: projectId } });
-    if (!project) {
-      return NextResponse.json(
-        { error: 'پروژه یافت نشد' },
-        { status: 404 }
-      );
-    }
-
-    // Check if delivery already confirmed for this purchase
     const existingDelivery = await db.deliveryConfirmation.findUnique({
-      where: { purchaseId },
+      where: { purchaseId: deliveryId }
     });
     if (existingDelivery) {
       return NextResponse.json(
@@ -67,42 +122,98 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create delivery confirmation and update purchase status
-    const delivery = await db.$transaction(async (tx) => {
-      const confirmation = await tx.deliveryConfirmation.create({
+    const result = await db.$transaction(async (tx) => {
+      // 1. ثبت تحویل
+      const delivery = await tx.deliveryConfirmation.create({
         data: {
-          purchaseId,
-          projectId,
-          deliveryDate: deliveryDate ? new Date(deliveryDate) : new Date(),
+          purchaseId: deliveryId,
+          projectId: purchase.projectId,
+          deliveryDate: new Date(),
           confirmedBy,
           notes: notes || null,
         },
-        include: {
-          purchase: {
-            include: {
-              supplier: true,
-              project: true,
-              items: true,
-            },
-          },
-          project: true,
-        },
       });
 
-      // Mark purchase as delivered (change status from pending to delivered if still pending)
-      if (purchase.status === 'pending') {
-        await tx.purchase.update({
-          where: { id: purchaseId },
-          data: { status: 'delivered' },
+      // 2. به‌روزرسانی وضعیت فاکتور
+      await tx.purchase.update({
+        where: { id: deliveryId },
+        data: { status: 'delivered' },
+      });
+
+      // 3. ✅ به‌روزرسانی موجودی مصالح
+      for (const item of purchase.items) {
+        console.log('🔄 Processing item:', {
+          id: item.id,
+          materialId: item.materialId,
+          materialName: item.materialName,
+          quantity: item.quantity,
         });
+        
+        let materialId = item.materialId;
+        
+        // ✅ اگر materialId null بود، سعی کن با materialName پیدا کنی
+        if (!materialId) {
+          const materialByName = await tx.material.findFirst({
+            where: {
+              name: item.materialName,
+              projectId: purchase.projectId,
+            },
+          });
+          if (materialByName) {
+            materialId = materialByName.id;
+            console.log(`✅ Found material by name: ${item.materialName} -> ${materialId}`);
+          } else {
+            console.warn(`❌ Material not found by name: ${item.materialName}`);
+          }
+        }
+        
+        if (materialId) {
+          const material = await tx.material.findUnique({
+            where: { id: materialId },
+          });
+
+          if (material) {
+            const updated = await tx.material.update({
+              where: { id: material.id },
+              data: { stock: { increment: item.quantity } },
+            });
+            console.log(`✅ Stock updated for ${material.name}: ${updated.stock}`);
+
+            // ثبت تراکنش انبار
+            await tx.transaction.create({
+              data: {
+                type: 'DELIVERY',
+                materialId: material.id,
+                projectId: purchase.projectId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+                purchaseId: deliveryId,
+                warehouseConfirmed: true,
+                date: new Date(),
+                userId: auth.userId,
+              },
+            });
+          } else {
+            console.warn(`⚠️ Material not found for id: ${materialId}`);
+          }
+        } else {
+          console.warn(`⚠️ Cannot find material for: ${item.materialName}`);
+        }
       }
 
-      return confirmation;
+      return delivery;
     });
 
-    return NextResponse.json(delivery, { status: 201 });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'تحویل با موفقیت ثبت شد و موجودی انبار به‌روز شد',
+      delivery: result 
+    });
+
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'خطای سرور';
+    console.error('POST /api/deliveries error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

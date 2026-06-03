@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Camera, X } from 'lucide-react';
+import { Camera, X , Upload} from 'lucide-react';
 import { 
   Warehouse as WarehouseIcon,
   Shield,
@@ -109,6 +109,7 @@ function WarehouseKeeperDashboard({ onPageChange }: { onPageChange?: (page: Page
 
   // داخل WarehouseKeeperDashboard، با بقیه useStateها:
 const [shortageUnit, setShortageUnit] = useState<'KILOGRAM' | 'PIECE'>('KILOGRAM');
+const [notes, setNotes] = useState('');
   
   // دیالوگ‌ها
   const [cameraDialogOpen, setCameraDialogOpen] = useState(false);
@@ -124,53 +125,69 @@ const [shortageUnit, setShortageUnit] = useState<'KILOGRAM' | 'PIECE'>('KILOGRAM
   const [selectedDelivery, setSelectedDelivery] = useState<any>(null);
 
   // بارگذاری داده‌ها
-  // بارگذاری داده‌ها
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const projectId = activeProject?.id || '';
-      
-      const [materialsRes, deliveriesRes, historyRes] = await Promise.all([
-        fetch(`/api/materials?projectId=${projectId}`),
-        fetch(`/api/deliveries/pending?projectId=${projectId}`),
-        fetch(`/api/deliveries/history?projectId=${projectId}`),
-      ]);
-      
-      let materialsData = [];
-      let deliveriesData = [];
-      let historyData = [];
-      
-      if (materialsRes.ok) {
-        const json = await materialsRes.json();
-        // ✅ درست: materials رو از داخل json استخراج کن
-        materialsData = json.materials || [];
-      }
-      
-      if (deliveriesRes.ok) {
-        const json = await deliveriesRes.json();
-        deliveriesData = json.deliveries || (Array.isArray(json) ? json : []);
-      }
-      
-      if (historyRes.ok) {
-        const json = await historyRes.json();
-        historyData = json.deliveries || (Array.isArray(json) ? json : []);
-      }
-      
-      setMaterials(materialsData);
-      setPendingDeliveries(deliveriesData);
-      setDeliveryHistory(historyData);
-      
-    } catch (error) {
-      console.error('Error loading warehouse data:', error);
-      toast.error('خطا در بارگذاری اطلاعات');
-    } finally {
-      setLoading(false);
+const loadData = useCallback(async () => {
+  const projectId = activeProject?.id || '';
+  
+  // ✅ اگر پروژه انتخاب نشده، درخواست نزن و stateها را خالی کن
+  if (!projectId) {
+    console.log('⏳ No project selected, skipping data load');
+    setLoading(false);
+    setMaterials([]);
+    setPendingDeliveries([]);
+    setDeliveryHistory([]);
+    return;
+  }
+  
+  setLoading(true);
+  try {
+    console.log('🔍 Loading data for project:', projectId);
+    
+    const [materialsRes, pendingRes, historyRes] = await Promise.all([
+      fetch(`/api/materials?projectId=${projectId}`),
+      fetch(`/api/deliveries?projectId=${projectId}&pending=true`),
+      fetch(`/api/deliveries?projectId=${projectId}`),
+    ]);
+    
+    let materialsData = [];
+    let pendingData = [];
+    let historyData = [];
+    
+    if (materialsRes.ok) {
+      const json = await materialsRes.json();
+      materialsData = json.materials || [];
     }
-  }, [activeProject?.id]);
-
-  useEffect(() => {
+    
+    if (pendingRes.ok) {
+      const json = await pendingRes.json();
+      pendingData = json.deliveries || [];
+    }
+    
+    if (historyRes.ok) {
+      const json = await historyRes.json();
+      historyData = json.history || [];
+    }
+    
+    setMaterials(materialsData);
+    setPendingDeliveries(pendingData);
+    setDeliveryHistory(historyData);
+    
+  } catch (error) {
+    console.error('Error loading warehouse data:', error);
+    toast.error('خطا در بارگذاری اطلاعات');
+  } finally {
+    setLoading(false);
+  }
+}, [activeProject?.id]);
+useEffect(() => {
+  if (activeProject?.id) {
     loadData();
-  }, [loadData]);
+  } else {
+    setMaterials([]);
+    setPendingDeliveries([]);
+    setDeliveryHistory([]);
+    setLoading(false);
+  }
+}, [activeProject?.id, loadData]);
 useEffect(() => {
   const handleOpenShortageFromEvent = () => {
     console.log('🔄 Event received: open-shortage-dialog');
@@ -209,15 +226,46 @@ const uniqueUnits = React.useMemo(() => {
     if (!selectedDelivery) return;
     
     try {
-      const res = await fetch('/api/deliveries/confirm', {
+      // لاگ 1: بررسی selectedDelivery
+      console.log('🔍 [FRONTEND] selectedDelivery:', JSON.stringify(selectedDelivery, null, 2));
+      console.log('🔍 [FRONTEND] selectedDelivery.items:', selectedDelivery.items);
+      
+      // بررسی materialId در هر آیتم
+      if (selectedDelivery.items) {
+        selectedDelivery.items.forEach((item, idx) => {
+          console.log(`🔍 [FRONTEND] Item ${idx}:`, {
+            materialId: item.materialId,
+            materialName: item.materialName,
+            quantity: item.quantity,
+          });
+        });
+      }
+      
+      const payload = {
+        deliveryId: selectedDelivery.id,
+        confirmedBy: 'انباردار',
+        image: capturedImage,
+        notes: notes,
+        items: selectedDelivery.items?.map((item: any) => ({
+          materialId: item.materialId,
+          materialName: item.materialName,
+          quantity: item.quantity,
+          unit: item.unit,
+        })) || [],
+      };
+      
+      console.log('📤 [FRONTEND] Sending payload:', JSON.stringify(payload, null, 2));
+      
+      const res = await fetch('/api/deliveries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deliveryId: selectedDelivery.id,
-          confirmedBy: 'انباردار',
-          image: capturedImage,
-        }),
+        body: JSON.stringify(payload),
       });
+      
+      console.log('📥 [FRONTEND] Response status:', res.status);
+      
+      const responseText = await res.text();
+      console.log('📥 [FRONTEND] Response body:', responseText);
       
       if (res.ok) {
         toast.success('تحویل بار با موفقیت تایید شد');
@@ -225,13 +273,48 @@ const uniqueUnits = React.useMemo(() => {
         setCapturedImage(null);
         loadData();
       } else {
-        toast.error('خطا در تایید تحویل');
+        let errorMsg = 'خطا در تایید تحویل';
+        try {
+          const errorJson = JSON.parse(responseText);
+          errorMsg = errorJson.error || errorMsg;
+        } catch {
+          errorMsg = responseText || errorMsg;
+        }
+        toast.error(errorMsg);
       }
-    } catch {
+    } catch (err) {
+      console.error('❌ [FRONTEND] Fetch error:', err);
       toast.error('خطا در ارتباط با سرور');
     }
   };
 
+  // تابع انتخاب فایل (تصویر یا PDF)
+const handleFileSelect = (file: File) => {
+  // بررسی حجم فایل (حداکثر 5 مگابایت)
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('حجم فایل نباید بیشتر از ۵ مگابایت باشد');
+    return;
+  }
+
+  // بررسی نوع فایل
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+  if (!allowedTypes.includes(file.type)) {
+    toast.error('فرمت فایل مجاز نیست. فقط تصویر یا PDF');
+    return;
+  }
+
+  // برای تصاویر، پیش‌نمایش بساز
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCapturedImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    // برای PDF، نام فایل را ذخیره کن
+    setCapturedImage(file.name);
+  }
+};
   const handleRequestShortage = async () => {
     if (!selectedMaterial?.id || !selectedMaterial?.name || !shortageQuantity) {
       toast.error('لطفاً مصالح و مقدار را انتخاب کنید');
@@ -360,100 +443,140 @@ console.log('مصالح:', materials);
         </div>
       </div>
 
-      {/* خریدهای در انتظار تحویل + تاریخچه */}
-      <div className="px-4 py-3">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
-            <TabsTrigger value="pending" className="rounded-lg text-xs font-bold">
-              در انتظار تحویل
-              {pendingDeliveries.length > 0 && (
-                <Badge className="mr-2 bg-red-500 text-white text-[9px] px-1.5">
-                  {toPersianDigits(pendingDeliveries.length)}
+    {/* خریدهای در انتظار تحویل + تاریخچه */}
+<div className="px-4 py-3">
+  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+    <TabsList className="grid w-full grid-cols-2 rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
+      <TabsTrigger value="pending" className="rounded-lg text-xs font-bold">
+        در انتظار تحویل
+        {pendingDeliveries.length > 0 && (
+          <Badge className="mr-2 bg-red-500 text-white text-[9px] px-1.5">
+            {toPersianDigits(pendingDeliveries.length)}
+          </Badge>
+        )}
+      </TabsTrigger>
+      <TabsTrigger value="history" className="rounded-lg text-xs font-bold">
+        تاریخچه تحویل‌ها
+      </TabsTrigger>
+    </TabsList>
+
+    {/* ✅ تب در انتظار تحویل - استفاده از pendingDeliveries */}
+    <TabsContent value="pending" className="mt-4 space-y-3">
+      {loading ? (
+        [...Array(3)].map((_, i) => (
+          <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl p-5 animate-pulse">
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-3" />
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2" />
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+          </div>
+        ))
+      ) : pendingDeliveries.length === 0 ? (
+        <div className="text-center py-12">
+          <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-emerald-400" />
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+            هیچ خرید در انتظار تحویلی وجود ندارد
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            فاکتورهای پرداخت شده در اینجا نمایش داده می‌شوند
+          </p>
+        </div>
+      ) : (
+        pendingDeliveries.map((delivery) => (
+          <motion.div
+            key={delivery.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-lg"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-[10px] mb-1">
+                  در انتظار تحویل
                 </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="history" className="rounded-lg text-xs font-bold">
-              تاریخچه تحویل‌ها
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="pending" className="mt-4 space-y-3">
-            {pendingDeliveries.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-emerald-400" />
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  هیچ خرید در انتظار تحویلی وجود ندارد
+                <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">
+                  {delivery.supplierName}
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  فاکتور: {toPersianDigits(delivery.invoiceNumber)}
                 </p>
-              </div>
-            ) : (
-              pendingDeliveries.map((delivery) => (
-                <motion.div
-                  key={delivery.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-lg"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-[10px] mb-1">
-                        در انتظار تحویل
-                      </Badge>
-                      <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">
-                        {delivery.supplierName}
-                      </h3>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        فاکتور: {toPersianDigits(delivery.invoiceNumber)}
+                {/* نمایش آیتم‌ها */}
+                {delivery.items && delivery.items.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground">اقلام:</p>
+                    {delivery.items.slice(0, 3).map((item, idx) => (
+                      <div key={idx} className="text-[11px] text-gray-600 dark:text-gray-400">
+                        • {item.materialName}: {toPersianDigits(item.quantity)} {item.unit === 'KILOGRAM' ? 'کیلوگرم' : item.unit === 'TON' ? 'تن' : 'عدد'}
+                      </div>
+                    ))}
+                    {delivery.items.length > 3 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        + {toPersianDigits(delivery.items.length - 3)} قلم دیگر
                       </p>
-                    </div>
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                    </div>
+                    )}
                   </div>
-
-                  <Button
-                    onClick={() => handleConfirmDelivery(delivery)}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-6 rounded-xl text-base font-bold gap-2 shadow-lg"
-                  >
-                    <CheckCircle2 className="w-5 h-5" />
-                    تایید تحویل بار
-                  </Button>
-                </motion.div>
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-4 space-y-2">
-            {deliveryHistory.length === 0 ? (
-              <div className="text-center py-12">
-                <ClipboardList className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  تاریخچه‌ای وجود ندارد
-                </p>
+                )}
               </div>
-            ) : (
-              deliveryHistory.slice(0, 10).map((history) => (
-                <div key={history.id} className="bg-white dark:bg-gray-900 rounded-xl p-3 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate">{history.supplierName}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      فاکتور: {toPersianDigits(history.invoiceNumber)} • {toPersianDigits(history.itemsCount)} قلم
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-medium text-gray-600">{formatDateShort(history.deliveredAt)}</p>
-                    <p className="text-[9px] text-muted-foreground">تایید: {history.confirmedBy}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0">
+                <Truck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
 
+            <Button
+              onClick={() => handleConfirmDelivery(delivery)}
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-6 rounded-xl text-base font-bold gap-2 shadow-lg"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              تایید تحویل بار
+            </Button>
+          </motion.div>
+        ))
+      )}
+    </TabsContent>
+
+    {/* ✅ تب تاریخچه تحویل‌ها */}
+    <TabsContent value="history" className="mt-4 space-y-2">
+      {loading ? (
+        [...Array(3)].map((_, i) => (
+          <div key={i} className="bg-white dark:bg-gray-900 rounded-xl p-3 animate-pulse">
+            <div className="flex gap-3">
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2" />
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+              </div>
+            </div>
+          </div>
+        ))
+      ) : deliveryHistory.length === 0 ? (
+        <div className="text-center py-12">
+          <ClipboardList className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+            تاریخچه‌ای وجود ندارد
+          </p>
+        </div>
+      ) : (
+        deliveryHistory.map((history) => (
+          <div key={history.id} className="bg-white dark:bg-gray-900 rounded-xl p-3 flex items-center gap-3 border border-gray-100 dark:border-gray-800">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate">{history.supplierName || history.purchase?.supplier?.companyName || '---'}</p>
+              <p className="text-[10px] text-muted-foreground">
+                فاکتور: {toPersianDigits(history.invoiceNumber || history.purchase?.invoiceNumber)} • {toPersianDigits(history.items?.length || history.purchase?.items?.length || 0)} قلم
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-medium text-gray-600">{formatDateShort(history.deliveredAt || history.createdAt)}</p>
+              <p className="text-[9px] text-muted-foreground">تایید: {history.confirmedBy}</p>
+            </div>
+          </div>
+        ))
+      )}
+    </TabsContent>
+  </Tabs>
+</div>
       {/* دیالوگ جزئیات مصالح */}
       <Dialog open={materialDetailOpen} onOpenChange={setMaterialDetailOpen}>
         <DialogContent className="max-w-sm rounded-2xl" dir="rtl">
@@ -686,62 +809,135 @@ console.log('مصالح:', materials);
   </DialogContent>
 </Dialog>
 
-      {/* دیالوگ تایید تحویل */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="max-w-sm rounded-2xl" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-              تایید تحویل بار
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 mt-2">
-            <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-4 text-center">
-              <Truck className="w-8 h-8 mx-auto mb-2 text-emerald-600" />
-              <p className="text-sm font-bold">
-                {selectedDelivery?.supplierName}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                فاکتور: {toPersianDigits(selectedDelivery?.invoiceNumber || '')}
-              </p>
-            </div>
-            
-            <div>
-              <Label className="text-xs font-semibold">عکس بارنامه (اختیاری)</Label>
-              <div className="mt-2">
-                {capturedImage ? (
-                  <div className="relative">
-                    <img src={capturedImage} alt="بارنامه" className="w-full h-32 object-cover rounded-xl" />
-                    <button
-                      onClick={() => setCapturedImage(null)}
-                      className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setCameraDialogOpen(true)}
-                    className="w-full border-2 border-dashed border-gray-300 rounded-xl p-4 text-center"
-                  >
-                    <Camera className="w-6 h-6 mx-auto mb-1 text-gray-400" />
-                    <span className="text-[11px] text-gray-500">ثبت عکس بارنامه</span>
-                  </button>
-                )}
-              </div>
-            </div>
-            
+      {/* دیالوگ تایید تحویل - نسخه با دوربین + آپلود فایل */}
+<Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+  <DialogContent className="max-w-sm rounded-2xl" dir="rtl">
+    <DialogHeader>
+      <DialogTitle className="flex items-center gap-2 text-base">
+        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+        تایید تحویل بار
+      </DialogTitle>
+    </DialogHeader>
+    
+    <div className="space-y-4 mt-2">
+      <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-4 text-center">
+        <Truck className="w-8 h-8 mx-auto mb-2 text-emerald-600" />
+        <p className="text-sm font-bold">
+          {selectedDelivery?.supplierName}
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          فاکتور: {toPersianDigits(selectedDelivery?.invoiceNumber || '')}
+        </p>
+      </div>
+      
+      {/* ✅ بخش آپلود/دوربین */}
+      <div>
+        <Label className="text-xs font-semibold">مدرک تحویل (بارنامه/رسید)</Label>
+        <div className="mt-2 space-y-3">
+          {/* دو دکمه برای انتخاب روش */}
+          <div className="flex gap-2">
             <Button
-              onClick={handleConfirmSubmit}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl py-5 text-base font-bold"
+              type="button"
+              variant="outline"
+              onClick={() => {
+                // باز کردن دوربین
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.capture = 'environment';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) handleFileSelect(file);
+                };
+                input.click();
+              }}
+              className="flex-1 gap-2 rounded-xl"
             >
-              <CheckCircle2 className="w-5 h-5 ml-2" />
-              تایید نهایی تحویل
+              <Camera className="w-4 h-4" />
+              دوربین
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) handleFileSelect(file);
+                };
+                input.click();
+              }}
+              className="flex-1 gap-2 rounded-xl"
+            >
+              <Upload className="w-4 h-4" />
+              آپلود فایل
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+
+          {/* پیش‌نمایش فایل */}
+          {capturedImage && (
+            <div className="relative border-2 border-emerald-300 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-800">
+              {capturedImage.startsWith('data:image') ? (
+                <img
+                  src={capturedImage}
+                  alt="مدرک تحویل"
+                  className="w-full h-32 object-cover"
+                />
+              ) : capturedImage.endsWith('.pdf') || capturedImage.includes('application/pdf') ? (
+                <div className="flex flex-col items-center justify-center p-4">
+                  <FileText className="w-10 h-10 text-red-500" />
+                  <span className="text-xs text-muted-foreground mt-1 truncate max-w-full">
+                    {capturedImage.split('/').pop() || 'فایل PDF'}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-4">
+                  <FileText className="w-10 h-10 text-blue-500" />
+                  <span className="text-xs text-muted-foreground mt-1 truncate max-w-full">
+                    {capturedImage.split('/').pop() || 'فایل پیوست'}
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={() => setCapturedImage(null)}
+                className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          {/* توضیح راهنما */}
+          <p className="text-[10px] text-muted-foreground text-center">
+            می‌توانید از بارنامه عکس بگیرید یا فایل PDF/تصویر آپلود کنید
+          </p>
+        </div>
+      </div>
+      
+      {/* یادداشت اختیاری */}
+      <div>
+        <Label className="text-xs font-semibold">یادداشت (اختیاری)</Label>
+        <Textarea
+          placeholder="توضیحات اضافی..."
+          className="rounded-xl mt-1"
+          value={notes}
+          rows={2}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </div>
+      
+      <Button
+        onClick={handleConfirmSubmit}
+        className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl py-5 text-base font-bold"
+      >
+        <CheckCircle2 className="w-5 h-5 ml-2" />
+        تایید نهایی تحویل
+      </Button>
+    </div>
+  </DialogContent>
+</Dialog>
     </div>
   );
 }

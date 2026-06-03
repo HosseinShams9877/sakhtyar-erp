@@ -29,6 +29,7 @@ const API_ROLE_ACCESS: Record<string, string[]> = {
   '/api/invoices/approve': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER'],
   '/api/project-members': ['SUPER_MANAGER', 'ADMIN', 'PROJECT_MANAGER'],
   '/api/user-projects': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER', 'ADMIN'],
+  '/api/deliveries': ['SUPER_MANAGER', 'WAREHOUSE_KEEPER'],
 };
 
 function findMatchingApiRoute(pathname: string): string[] | null {

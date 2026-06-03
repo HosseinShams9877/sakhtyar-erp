@@ -29,153 +29,103 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // بررسی وجود فاکتور
     const purchase = await db.purchase.findUnique({
       where: { id: purchaseId },
-      include: {
-        project: true,
-        supplier: true,
-        approvals: { orderBy: { createdAt: 'desc' } },
-      },
+      include: { project: true, supplier: true },
     });
 
     if (!purchase) {
       return NextResponse.json({ error: 'فاکتور یافت نشد' }, { status: 404 });
     }
 
-    // بررسی مجوز بر اساس نقش و عملیات
     const userRole = auth.role;
     let newStatus = purchase.status;
-    let auditAction = action;
 
     switch (action) {
-      case 'submit':
-        // مسئول خرید فاکتور را ارسال می‌کند
-        if (userRole !== 'PURCHASER' && userRole !== 'SUPER_MANAGER') {
-          return NextResponse.json({ error: 'فقط مسئول خرید می‌تواند فاکتور ارسال کند' }, { status: 403 });
-        }
-        if (purchase.status !== 'pending' && purchase.status !== 'rejected') {
-          return NextResponse.json({ error: 'فاکتور در وضعیت قابل ارسال نیست' }, { status: 400 });
-        }
-        newStatus = 'submitted';
-        break;
-
       case 'approve':
-        // مدیر پروژه تایید می‌کند
+        // ✅ فقط مدیر پروژه و مدیر کل می‌توانند تایید کنند
         if (userRole !== 'PROJECT_MANAGER' && userRole !== 'SUPER_MANAGER') {
-          return NextResponse.json({ error: 'فقط مدیر پروژه می‌تواند فاکتور تایید کند' }, { status: 403 });
+          return NextResponse.json({ error: 'شما مجوز تایید فاکتور را ندارید' }, { status: 403 });
         }
-        if (purchase.status !== 'submitted') {
-          return NextResponse.json({ error: 'فاکتور در وضعیت قابل تایید نیست' }, { status: 400 });
+        if (purchase.status !== 'pending') {
+          return NextResponse.json({ error: 'فقط فاکتورهای در انتظار قابل تایید هستند' }, { status: 400 });
         }
         newStatus = 'approved';
         break;
 
       case 'reject':
-        // مدیر پروژه رد می‌کند
+        // ✅ فقط مدیر پروژه و مدیر کل می‌توانند رد کنند
         if (userRole !== 'PROJECT_MANAGER' && userRole !== 'SUPER_MANAGER') {
-          return NextResponse.json({ error: 'فقط مدیر پروژه می‌تواند فاکتور رد کند' }, { status: 403 });
+          return NextResponse.json({ error: 'شما مجوز رد فاکتور را ندارید' }, { status: 403 });
         }
-        if (purchase.status !== 'submitted') {
-          return NextResponse.json({ error: 'فاکتور در وضعیت قابل رد نیست' }, { status: 400 });
+        if (purchase.status !== 'pending') {
+          return NextResponse.json({ error: 'فقط فاکتورهای در انتظار قابل رد هستند' }, { status: 400 });
         }
         newStatus = 'rejected';
         break;
 
       case 'settle':
-        // مدیر کل تسویه می‌کند
+        // ✅ فقط مدیر کل می‌تواند تسویه کند
         if (userRole !== 'SUPER_MANAGER') {
           return NextResponse.json({ error: 'فقط مدیر کل می‌تواند تسویه انجام دهد' }, { status: 403 });
         }
         if (purchase.status !== 'approved') {
-          return NextResponse.json({ error: 'فاکتور تایید نشده است' }, { status: 400 });
+          return NextResponse.json({ error: 'فاکتور باید ابتدا تایید شود' }, { status: 400 });
         }
         newStatus = 'paid';
         break;
 
       default:
-        return NextResponse.json({ error: 'عملیات نامعتبر' }, { status: 400 });
+        return NextResponse.json({ error: 'عملیات نامعتبر است' }, { status: 400 });
     }
 
-    // بروزرسانی وضعیت فاکتور
+    // بروزرسانی وضعیت
     const updatedPurchase = await db.purchase.update({
       where: { id: purchaseId },
       data: { status: newStatus },
-      include: {
-        supplier: true,
-        project: true,
-        items: true,
-        approvals: true,
-      },
     });
 
-    // ثبت لاگ تایید
+    // ثبت لاگ
     await db.approvalLog.create({
       data: {
         purchaseId,
         userId: auth.userId!,
-        action: auditAction,
-        stepName: stepName || WORKFLOW_STATUS[newStatus as keyof typeof WORKFLOW_STATUS]?.label || newStatus,
+        action: action,
+        stepName: stepName || (action === 'approve' ? 'تایید مدیر پروژه' : action === 'reject' ? 'رد مدیر پروژه' : 'تسویه'),
         comment: comment || null,
       },
     });
 
-    // ایجاد نوتیفیکیشن برای نقش بعدی
-    if (newStatus === 'submitted') {
-      // اطلاع به مدیران پروژه
-      const projectManagers = await db.user.findMany({
-        where: {
-          role: { name: 'PROJECT_MANAGER' },
-          projectAccess: { some: { projectId: purchase.projectId } },
-          isActive: true,
+    // نوتیفیکیشن
+    if (action === 'approve') {
+      // اطلاع به مسئول خرید
+      await db.notification.create({
+        data: {
+          userId: purchase.createdById!,
+          title: 'فاکتور تایید شد',
+          message: `فاکتور ${purchase.invoiceNumber} توسط مدیر پروژه تایید شد`,
+          type: 'success',
+          link: `/invoices`,
         },
       });
-      for (const pm of projectManagers) {
-        await db.notification.create({
-          data: {
-            userId: pm.id,
-            title: 'فاکتور نیازمند تایید',
-            message: `فاکتور ${purchase.invoiceNumber} از ${purchase.supplier?.companyName || 'نامشخص'} نیازمند تایید شماست`,
-            type: 'warning',
-            link: `/invoices`,
-          },
-        });
-      }
-    } else if (newStatus === 'approved') {
-      // اطلاع به مدیر کل
-      const superManagers = await db.user.findMany({
-        where: { role: { name: 'SUPER_MANAGER' }, isActive: true },
+    } else if (action === 'reject') {
+      // اطلاع به مسئول خرید برای اصلاح
+      await db.notification.create({
+        data: {
+          userId: purchase.createdById!,
+          title: 'فاکتور رد شد',
+          message: `فاکتور ${purchase.invoiceNumber} رد شد. لطفاً اصلاح کنید.`,
+          type: 'error',
+          link: `/invoices`,
+        },
       });
-      for (const sm of superManagers) {
-        await db.notification.create({
-          data: {
-            userId: sm.id,
-            title: 'فاکتور تایید شده',
-            message: `فاکتور ${purchase.invoiceNumber} از ${purchase.supplier?.companyName || 'نامشخص'} تایید شده و آماده تسویه است`,
-            type: 'info',
-            link: `/invoices`,
-          },
-        });
-      }
     }
-
-    // ثبت لاگ ممیزی
-    await db.auditLog.create({
-      data: {
-        userId: auth.userId,
-        action: action.toUpperCase(),
-        entity: 'Purchase',
-        entityId: purchaseId,
-        details: JSON.stringify({ from: purchase.status, to: newStatus, comment }),
-      },
-    });
 
     return NextResponse.json({
       purchase: updatedPurchase,
-      message: `وضعیت فاکتور به "${WORKFLOW_STATUS[newStatus as keyof typeof WORKFLOW_STATUS]?.label || newStatus}" تغییر کرد`,
+      message: action === 'approve' ? 'فاکتور تایید شد' : action === 'reject' ? 'فاکتور رد شد' : 'تسویه انجام شد',
     });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'خطای ناشناخته';
+  } catch (error) {
     console.error('Approval error:', error);
     return NextResponse.json({ error: 'خطا در ثبت تایید' }, { status: 500 });
   }

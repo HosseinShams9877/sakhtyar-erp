@@ -98,7 +98,55 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  return NextResponse.json({ error: 'مصالح از طریق ثبت فاکتور ایجاد می‌شود' }, { status: 400 });
+  const auth = await requirePermission('materials:create');
+  if (!auth.success) return auth.response;
+
+  try {
+    const body = await req.json();
+    const { name, code, categoryId, unit, minStock, description, projectId } = body;
+
+    // اعتبارسنجی
+    if (!name || !code || !categoryId || !projectId) {
+      return NextResponse.json(
+        { error: 'نام، کد، دسته‌بندی و پروژه الزامی است' },
+        { status: 400 }
+      );
+    }
+
+    // بررسی تکراری نبودن کد در پروژه
+    const existing = await db.material.findFirst({
+      where: { 
+        code,
+        projectId 
+      },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'کد کالا در این پروژه تکراری است' },
+        { status: 409 }
+      );
+    }
+
+    // ایجاد کالای جدید
+    const material = await db.material.create({
+      data: {
+        name,
+        code,
+        categoryId,
+        unit,
+        minStock: minStock || 0,
+        description: description || null,
+        projectId,
+      },
+    });
+
+    return NextResponse.json(material, { status: 201 });
+    
+  } catch (error: any) {
+    console.error('Error creating material:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest) {

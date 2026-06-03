@@ -207,12 +207,12 @@ export async function POST(req: NextRequest) {
     if (!supplier) {
       return NextResponse.json({ error: 'تأمین‌کننده یافت نشد' }, { status: 404 });
     }
+    
 
     // اعتبارسنجی اقلام
     const validItems = Array.isArray(items)
       ? items.filter((item: any) => item.materialName && item.quantity > 0 && item.unitPrice >= 0)
       : [];
-
     // ایجاد فاکتور
     const purchase = await db.purchase.create({
       data: {
@@ -236,6 +236,7 @@ export async function POST(req: NextRequest) {
         deliveryReceiptUrl: deliveryReceiptUrl || null,
         items: {
           create: validItems.map((item: any) => ({
+            materialId: item.materialId || null,
             materialName: String(item.materialName).slice(0, 200),
             quantity: Number(item.quantity),
             unit: String(item.unit).slice(0, 30),

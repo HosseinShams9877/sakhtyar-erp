@@ -1,5 +1,5 @@
 'use client';
-
+import { useAuth } from '@/components/auth-provider';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,22 +9,45 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { AddMaterialDialog } from './add-material-dialog';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { useProject } from '@/components/project-context'; 
-// Dialog removed — invoice form now renders as full page
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
   AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { cn } from "@/lib/utils";
+
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+
 import {
   Plus, Upload, Eye, Search, FileText, X, Image as ImageIcon, Pencil, Trash2,
   CheckCircle2, XCircle, ChevronDown, Paperclip, Truck, Receipt, DollarSign,
-  CalendarDays, CreditCard, Package, Minus, FolderOpen,Download
+  CalendarDays, CreditCard, Package, Minus, FolderOpen, Download,Check, ChevronsUpDown 
 } from 'lucide-react';
 import ShamsiDatePicker from '@/components/ui/shamsi-date-picker';
 import { toast } from 'sonner';
@@ -38,7 +61,7 @@ import { useSearchParams } from 'next/navigation';
 
 interface Vendor { id: string; companyName: string; }
 interface Project { id: string; name: string; code: string; }
-interface Material { id: string; name: string; code: string; unit: string; }
+interface Material { id: string; name: string; code: string; unit: string; projectId?: string;}
 
 interface InvoiceItem {
   materialId?: string;
@@ -176,12 +199,17 @@ export default function InvoiceForm() {
   const statusFilter = searchParams.get('status');
   const typeFilter = searchParams.get('type');
   const [isCorrective, setIsCorrective] = useState(false);
+  const [addMaterialDialogOpen, setAddMaterialDialogOpen] = useState(false);
+
 
   // اضافه کن به بقیه useState‌ها
 const [currentPage, setCurrentPage] = useState(1);
 const [totalPages, setTotalPages] = useState(1);
 const [totalItems, setTotalItems] = useState(0);
 const pageSize = 12;
+
+const { session } = useAuth();
+const userRole = (session?.user as any)?.role;
 
   // UI state
   const [search, setSearch] = useState('');
@@ -198,6 +226,7 @@ const pageSize = 12;
   const [items, setItems] = useState<InvoiceItemRow[]>([createEmptyItemRow()]);
   const [files, setFiles] = useState<FileState>(emptyFiles);
   const [previews, setPreviews] = useState<FilePreview>(emptyPreviews);
+  const [openPopover, setOpenPopover] = useState<Record<string, boolean>>({});
 
   // Autocomplete state for each item row
   const [materialSuggestions, setMaterialSuggestions] = useState<Record<string, Material[]>>({});
@@ -236,12 +265,17 @@ const pageSize = 12;
         fetch(url),
         fetch('/api/vendors'),
         fetch('/api/projects'),
-        fetch('/api/materials'),
+        fetch(`/api/materials?projectId=${projectId}`),
       ]);
+      
       const invData = await invRes.json();
       const vndData = await vndRes.json();
       const prjData = await prjRes.json();
       const matData = await matRes.json();
+      
+      // دیباگ برای بررسی دیتای دریافتی
+      console.log('📦 Raw matData:', matData);
+      console.log('📦 matData.materials:', matData?.materials);
       
       // دریافت اطلاعات صفحه‌بندی از پاسخ سرور
       const invoicesArray = invData.purchases || [];
@@ -261,15 +295,46 @@ const pageSize = 12;
       
       setInvoices(normalizedInvoices);
       setVendors(Array.isArray(vndData) ? vndData : []);
-      setProjects(Array.isArray(prjData) ? prjData : []);
-      setMaterials(Array.isArray(matData?.materials) ? matData.materials : Array.isArray(matData) ? matData : []);
       
-      // برای دیباگ
+      // فیلتر پروژه‌ها برای PURCHASER
+      let projectsData: Project[] = Array.isArray(prjData) ? prjData : [];
+      if (userRole === 'PURCHASER' && activeProject?.id) {
+        projectsData = projectsData.filter(p => p.id === activeProject.id);
+      }
+      setProjects(projectsData);
+      
+      // ✅ دریافت مصالح با نوع‌دهی صحیح
+      let materialsData: Material[] = [];
+      
+      // بررسی ساختار دیتای برگشتی
+      if (matData?.materials && Array.isArray(matData.materials)) {
+        materialsData = matData.materials;
+        console.log('📦 Materials from matData.materials:', materialsData.length);
+      } else if (Array.isArray(matData)) {
+        materialsData = matData;
+        console.log('📦 Materials from matData (array):', materialsData.length);
+      } else {
+        console.log('⚠️ Unexpected matData structure:', matData);
+      }
+      
+      // فیلتر بر اساس پروژه (اگر فیلد projectId وجود داشته باشد)
+      if (activeProject?.id && materialsData.length > 0) {
+        const hasProjectId = materialsData.some((m: Material) => m.projectId !== undefined);
+        if (hasProjectId) {
+          const beforeFilter = materialsData.length;
+          materialsData = materialsData.filter((m: Material) => m.projectId === activeProject.id);
+          console.log(`🔍 Filtered materials by project: ${beforeFilter} → ${materialsData.length}`);
+        }
+      }
+      
+      setMaterials(materialsData);
+      
       console.log('Page Info:', { 
         currentPage, 
         totalPages: totalPagesFromServer, 
         totalItems: total,
         receivedCount: invoicesArray.length,
+        materialsCount: materialsData.length,
         filters: { status: statusFilter, type: typeFilter, projectId, projectIdFromUrl }
       });
       
@@ -281,7 +346,28 @@ const pageSize = 12;
     } finally {
       setLoading(false);
     }
-  }, [search, currentPage, pageSize, statusFilter, typeFilter, activeProject?.id, searchParams]);
+  }, [search, currentPage, pageSize, statusFilter, typeFilter, activeProject?.id, searchParams, userRole]);
+
+  // بارگذاری مصالح بر اساس پروژه فعال
+const loadMaterials = useCallback(async () => {
+  const projectId = activeProject?.id || '';
+  
+  if (!projectId) {
+    setMaterials([]);
+    return;
+  }
+  
+  try {
+    const res = await fetch(`/api/materials?projectId=${projectId}`);
+    if (res.ok) {
+      const data = await res.json();
+      setMaterials(data.materials || []);
+    }
+  } catch (error) {
+    console.error('Error loading materials:', error);
+  }
+}, [activeProject?.id]);
+
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -304,6 +390,8 @@ const pageSize = 12;
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showSuggestions]);
+
+
 
   // ─── Computed Values ───
 
@@ -375,6 +463,7 @@ const pageSize = 12;
     );
     setShowSuggestions((prev) => ({ ...prev, [key]: false }));
   };
+
 
   // ─── File Management ───
 
@@ -456,6 +545,19 @@ const pageSize = 12;
 
     return formData;
   };
+
+  const handleMaterialAdded = useCallback(() => {
+    // بارگذاری مجدد مصالح
+    const projectId = activeProject?.id || '';
+    if (projectId) {
+      fetch(`/api/materials?projectId=${projectId}`)
+        .then(res => res.json())
+        .then(data => {
+          setMaterials(data.materials || []);
+        })
+        .catch(console.error);
+    }
+  }, [activeProject?.id]);
 
   // ─── CRUD Handlers ───
 
@@ -710,27 +812,29 @@ const pageSize = 12;
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
+  const handleStatusChange = async (id: string, action: string) => {
     try {
-      const res = await fetch('/api/invoices', {
-        method: 'PUT',
+      const res = await fetch('/api/invoices/approve', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: newStatus }),
+        body: JSON.stringify({ 
+          purchaseId: id,
+          action: action,      // 'approve' یا 'reject'
+          comment: null,
+          stepName: action === 'approve' ? 'تایید مدیر پروژه' : 'رد مدیر پروژه'
+        }),
       });
+      
+      const result = await res.json();
+      
       if (res.ok) {
-        toast.success(
-          newStatus === 'approved'
-            ? 'فاکتور تایید شد'
-            : newStatus === 'rejected'
-            ? 'فاکتور رد شد'
-            : 'وضعیت فاکتور تغییر کرد'
-        );
-        loadData();
+        toast.success(result.message || (action === 'approve' ? 'فاکتور تایید شد' : 'فاکتور رد شد'));
+        loadData(); // ریلود لیست
       } else {
-        const err = await res.json();
-        toast.error(err.error || 'خطا در تغییر وضعیت');
+        toast.error(result.error || 'خطا در تغییر وضعیت');
       }
-    } catch {
+    } catch (error) {
+      console.error('Error:', error);
       toast.error('خطا در ارتباط با سرور');
     }
   };
@@ -953,6 +1057,22 @@ const pageSize = 12;
             <Package className="w-4 h-4" />
             آیتم‌های فاکتور
           </h4>
+
+          <Button
+  type="button"
+  variant="outline"
+  size="sm"
+  className="gap-1.5 rounded-xl text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+  onClick={() => {
+    console.log('🔵 دکمه کلیک شد، projectId:', activeProject?.id);
+    console.log('🔵 addMaterialDialogOpen قبل:', addMaterialDialogOpen);
+    setAddMaterialDialogOpen(true);
+    console.log('🔵 addMaterialDialogOpen بعد:', true);
+  }}
+>
+  <Plus className="w-3.5 h-3.5" />
+  افزودن کالای جدید
+</Button>
           <Button
             type="button"
             variant="outline"
@@ -981,46 +1101,93 @@ const pageSize = 12;
               <TableBody>
                 {items.map((row) => (
                   <TableRow key={row._key} className="hover:bg-muted/20">
-                    {/* نام کالا با autocomplete */}
-                    <TableCell className="relative p-2">
-                      <div ref={(el) => { suggestionRefs.current[row._key] = el; }}>
-                        <Input
-                          placeholder="نام کالا..."
-                          value={row.materialName}
-                          onChange={(e) => handleMaterialSearch(row._key, e.target.value)}
-                          onFocus={() => {
-                            if (row.materialName.trim().length > 0) {
-                              const filtered = materials.filter(
-                                (m) => 
-                                  m.name.includes(row.materialName.trim()) || 
-                                  (m.code && m.code.toLowerCase().includes(row.materialName.trim().toLowerCase()))  // ✅ بررسی وجود m.code
-                              ).slice(0, 8);
-                              if (filtered.length > 0) {
-                                setMaterialSuggestions((prev) => ({ ...prev, [row._key]: filtered }));
-                                setShowSuggestions((prev) => ({ ...prev, [row._key]: true }));
-                              }
-                            }
-                          }}
-                          className="input-modern rounded-lg text-sm h-9"
-                        />
-                        {showSuggestions[row._key] && materialSuggestions[row._key]?.length > 0 && (
-                          <div className="absolute z-50 top-full right-0 left-0 mt-1 bg-popover border border-border rounded-xl shadow-soft-md max-h-40 overflow-y-auto scrollbar-thin">
-                            {materialSuggestions[row._key].map((mat) => (
-                              <button
-                                key={mat.id}
-                                type="button"
-                                className="w-full text-right px-3 py-2 text-sm hover:bg-muted/60 transition-colors flex items-center justify-between"
-                                onClick={() => selectMaterial(row._key, mat)}
-                              >
-                                <span>{mat.name}</span>
-                                <span className="text-[10px] text-muted-foreground">{mat.code}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-
+                   {/* نام کالا با سلکتور جستجو */}
+                   <TableCell className="relative p-2 min-w-[280px]">
+  <Popover 
+    open={openPopover[row._key]} 
+    onOpenChange={(open) => setOpenPopover(prev => ({ ...prev, [row._key]: open }))}
+  >
+    <PopoverTrigger asChild>
+      <Button
+        variant="outline"
+        role="combobox"
+        aria-expanded={openPopover[row._key]}
+        className="w-full justify-between rounded-lg h-9 text-sm font-normal"
+      >
+        {row.materialId 
+          ? materials.find(m => m.id === row.materialId)?.name 
+          : "انتخاب کالا..."}
+        <ChevronsUpDown className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-[320px] p-0" align="start">
+      <Command>
+        <CommandInput 
+          placeholder="جستجوی کالا (نام یا کد)..." 
+          className="h-9 text-right" 
+        />
+       <CommandList>
+  <CommandEmpty>
+    <div className="py-6 text-center text-sm">
+      {materials.length === 0 ? (
+        <p className="text-muted-foreground">در حال بارگذاری کالاها...</p>
+      ) : (
+        <p className="text-muted-foreground">کالایی یافت نشد</p>
+      )}
+    </div>
+  </CommandEmpty>
+  <CommandGroup>
+    {materials.map((material) => (
+      <CommandItem
+      key={material.id}
+      value={material.name}
+      onSelect={() => {
+        selectMaterial(row._key, material);
+        setOpenPopover(prev => ({ ...prev, [row._key]: false }));
+      }}
+      className="flex justify-between items-center cursor-pointer text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+    >
+      <div className="flex-1 text-right">
+        <span className="font-medium text-gray-900 dark:text-gray-100">{material.name}</span>
+        {material.code && (
+          <span className="text-[10px] text-gray-500 dark:text-gray-400 mr-2">({material.code})</span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-gray-500 dark:text-gray-400">
+          {UNIT_LABELS[material.unit as keyof typeof UNIT_LABELS] || material.unit}
+        </span>
+        <Check
+          className={cn(
+            "h-4 w-4 text-emerald-600 dark:text-emerald-400",
+            row.materialId === material.id ? "opacity-100" : "opacity-0"
+          )}
+        />
+      </div>
+    </CommandItem>
+    ))}
+  </CommandGroup>
+  
+  {/* ✅ دکمه اینجا - بعد از CommandGroup و داخل CommandList */}
+  <div className="border-t p-2">
+    <Button
+      variant="ghost"
+      size="sm"
+      className="w-full justify-start gap-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+      onClick={() => {
+        setOpenPopover(prev => ({ ...prev, [row._key]: false }));
+        setAddMaterialDialogOpen(true);
+      }}
+    >
+      <Plus className="w-3.5 h-3.5" />
+      افزودن کالای جدید
+    </Button>
+  </div>
+</CommandList>
+      </Command>
+    </PopoverContent>
+  </Popover>
+</TableCell>
                     {/* واحد */}
                     <TableCell className="p-2">
                       <Select
@@ -1356,11 +1523,11 @@ const pageSize = 12;
                 <TableBody>
                   {(inv.items || []).map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/20">
-                      <TableCell className="text-sm font-medium">{item.materialName}</TableCell>
-                      <TableCell className="text-sm">{UNIT_LABELS[item.unit] || '—'}</TableCell>
-                      <TableCell className="text-sm" dir="ltr">{toPersianDigits(item.quantity)}</TableCell>
-                      <TableCell className="text-sm" dir="ltr">{formatCurrency(item.unitPrice)}</TableCell>
-                      <TableCell className="text-sm font-semibold" dir="ltr">{formatCurrency(item.totalPrice)}</TableCell>
+                      <TableCell className="text-sm  text-right font-medium">{item.materialName}</TableCell>
+                      <TableCell className="text-sm text-right">{UNIT_LABELS[item.unit] || '—'}</TableCell>
+                      <TableCell className="text-sm text-right" dir="ltr">{toPersianDigits(item.quantity)}</TableCell>
+                      <TableCell className="text-sm text-right" dir="ltr">{formatCurrency(item.unitPrice)}</TableCell>
+                      <TableCell className="text-sm text-right font-semibold" dir="ltr">{formatCurrency(item.totalPrice)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1368,7 +1535,7 @@ const pageSize = 12;
             </div>
             <div className="mt-2 flex items-center justify-between px-2">
               <span className="text-xs text-muted-foreground">جمع کل:</span>
-              <span className="text-sm font-bold" dir="ltr">{formatCurrency(inv.totalAmount)}</span>
+              <span className="text-sm font-bold " dir="ltr">{formatCurrency(inv.totalAmount)}</span>
             </div>
             {inv.taxAmount > 0 && (
               <div className="flex items-center justify-between px-2">
@@ -1571,6 +1738,12 @@ const pageSize = 12;
             {renderInvoiceForm(false)}
           </CardContent>
         </Card>
+        <AddMaterialDialog
+        open={addMaterialDialogOpen}
+        onOpenChange={setAddMaterialDialogOpen}
+        projectId={activeProject?.id || ''}
+        onMaterialAdded={handleMaterialAdded}
+      />
       </div>
     );
   }
@@ -1601,6 +1774,12 @@ const pageSize = 12;
             {renderInvoiceForm(true)}
           </CardContent>
         </Card>
+        <AddMaterialDialog
+        open={addMaterialDialogOpen}
+        onOpenChange={setAddMaterialDialogOpen}
+        projectId={activeProject?.id || ''}
+        onMaterialAdded={handleMaterialAdded}
+      />
       </div>
     );
   }
@@ -1636,25 +1815,17 @@ const pageSize = 12;
               <Pencil className="w-4 h-4" />
               ویرایش
             </Button>
-            {inv.status === 'pending' && (
-              <>
-                <Button
-                  className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => handleStatusChange(inv.id, 'approved')}
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  تایید
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gap-2 rounded-xl border-rose-300 text-rose-600 hover:bg-rose-50"
-                  onClick={() => handleStatusChange(inv.id, 'rejected')}
-                >
-                  <XCircle className="w-4 h-4" />
-                  رد
-                </Button>
-              </>
-            )}
+            {/* Approve / Reject - فقط برای مدیر پروژه نمایش داده شود */}
+            {inv.status === 'pending' && (userRole === 'PROJECT_MANAGER' || userRole === 'SUPER_MANAGER') && (
+  <>
+    <Button onClick={() => handleStatusChange(inv.id, 'approve')}>
+      <CheckCircle2 /> تایید
+    </Button>
+    <Button onClick={() => handleStatusChange(inv.id, 'reject')}>
+      <XCircle /> رد
+    </Button>
+  </>
+)}
           </div>
         </div>
 
@@ -1663,6 +1834,12 @@ const pageSize = 12;
             {renderDetailView()}
           </CardContent>
         </Card>
+        <AddMaterialDialog
+        open={addMaterialDialogOpen}
+        onOpenChange={setAddMaterialDialogOpen}
+        projectId={activeProject?.id || ''}
+        onMaterialAdded={handleMaterialAdded}
+      />
       </div>
     );
   }
@@ -1784,29 +1961,29 @@ const pageSize = 12;
                             <Pencil className="w-4 h-4" />
                           </Button>
 
-                          {/* Approve / Reject */}
-                          {inv.status === 'pending' && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-8 h-8 rounded-lg hover:bg-emerald-50 hover:text-emerald-600"
-                                onClick={() => handleStatusChange(inv.id, 'approved')}
-                                title="تایید"
-                              >
-                                <CheckCircle2 className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-8 h-8 rounded-lg hover:bg-amber-50 hover:text-amber-600"
-                                onClick={() => handleStatusChange(inv.id, 'rejected')}
-                                title="رد"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
+                          {/* Approve / Reject - فقط برای مدیر پروژه و مدیر کل */}
+{inv.status === 'pending' && (userRole === 'PROJECT_MANAGER' || userRole === 'SUPER_MANAGER') && (
+  <>
+    <Button
+      variant="ghost"
+      size="icon"
+      className="w-8 h-8 rounded-lg hover:bg-emerald-50 hover:text-emerald-600"
+      onClick={() => handleStatusChange(inv.id, 'approve')}
+      title="تایید"
+    >
+      <CheckCircle2 className="w-4 h-4" />
+    </Button>
+    <Button
+      variant="ghost"
+      size="icon"
+      className="w-8 h-8 rounded-lg hover:bg-rose-50 hover:text-rose-600"
+      onClick={() => handleStatusChange(inv.id, 'reject')}
+      title="رد"
+    >
+      <XCircle className="w-4 h-4" />
+    </Button>
+  </>
+)}
 
                           {/* Delete */}
                           <AlertDialog>
@@ -1876,6 +2053,13 @@ const pageSize = 12;
         </div>
       </div>
     )}
+    {/* دیالوگ افزودن کالای جدید */}
+<AddMaterialDialog
+  open={addMaterialDialogOpen}
+  onOpenChange={setAddMaterialDialogOpen}
+  projectId={activeProject?.id || ''}
+  onMaterialAdded={handleMaterialAdded}
+/>
   
     </div>
   );

@@ -163,6 +163,7 @@ const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'vendors:view', 'vendors:create', 'vendors:edit',
     'transactions:view',
     'materials:view',
+    'materials:create'
     // عدم دسترسی
     // ❌ تنظیمات سیستم
     // ❌ مدیریت کاربران
@@ -176,6 +177,7 @@ const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'warehouse:view', 'warehouse:create',
     'invoices:view',
     'materials:view', 'tracking:view',
+    'deliveries:confirm',
     // عدم دسترسی
     // ❌ بدهی‌ها
     // ❌ سررسیدها
