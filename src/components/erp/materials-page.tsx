@@ -48,14 +48,42 @@ export default function MaterialsPage() {
   const [form, setForm] = useState(emptyForm);
 
   const loadData = useCallback(async () => {
+    setLoading(true);  // ✅ اضافه کن
     try {
       const projectId = activeProject?.id || '';
-      const res = await fetch(`/api/materials?search=${search}&categoryId=${filterCat}&projectId=${projectId}`);
+      console.log('🔍 MaterialsPage - activeProject:', activeProject);
+      console.log('🔍 MaterialsPage - projectId:', projectId);
+      
+      const url = `/api/materials?search=${search}&categoryId=${filterCat}&projectId=${projectId}`;
+      console.log('🔍 MaterialsPage - Fetching URL:', url);
+      
+      const res = await fetch(url);
+      console.log('🔍 MaterialsPage - Response status:', res.status);
+      
       const data = await res.json();
+      console.log('🔍 MaterialsPage - Raw response:', data);
+      
+      // پیدا کردن سیمان تیپ ۲ در response
+      const cement = data.materials?.find((m: any) => m.name === 'سیمان تیپ ۲');
+      if (cement) {
+        console.log('🔍 سیمان تیپ ۲ در MaterialsPage:', {
+          name: cement.name,
+          stock: cement.stock,
+          minStock: cement.minStock,
+          unit: cement.unit
+        });
+      } else {
+        console.log('❌ سیمان تیپ ۲ در پاسخ API یافت نشد!');
+      }
+      
       setMaterials(data.materials || []);
       setCategories(data.categories || []);
-    } catch { } finally { setLoading(false); }
-  }, [search, filterCat , activeProject?.id]);
+    } catch (error) {
+      console.error('❌ MaterialsPage - Error loading data:', error);
+    } finally { 
+      setLoading(false); 
+    }
+  }, [search, filterCat, activeProject?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

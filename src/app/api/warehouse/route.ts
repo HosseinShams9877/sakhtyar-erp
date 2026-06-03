@@ -28,29 +28,44 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // ✅ دریافت مصالح پروژه به همراه تراکنش‌های خرید تأیید شده
+    // دریافت مصالح پروژه
     const materials = await db.material.findMany({
       where: { projectId },
       include: {
         category: true,
-        transactions: {
-          where: {
-            type: 'PURCHASE',
-            warehouseConfirmed: true
-          }
-        }
       },
       orderBy: { name: 'asc' }
     });
 
-    // ✅ ساخت موجودی انبار از روی مصالح و تراکنش‌ها
+    // دریافت همه تراکنش‌های تأیید شده پروژه
+    const allTransactions = await db.transaction.findMany({
+      where: {
+        projectId,
+        warehouseConfirmed: true,
+      },
+    });
+
+    // ساخت موجودی انبار با محاسبه صحیح
     const stocks = materials.map((material, idx) => {
-      // محاسبه مجموع مقدار خریدهای تأیید شده
-      const totalPurchased = material.transactions.reduce((sum, t) => sum + t.quantity, 0);
+      // فیلتر تراکنش‌های مربوط به این مصالح
+      const materialTransactions = allTransactions.filter(t => t.materialId === material.id);
       
-      // TODO: مصرف و سایر تراکنش‌ها را هم باید محاسبه کنی
-      const consumed = 0; // بعداً از تراکنش‌های CONSUMPTION محاسبه کن
-      const quantity = totalPurchased - consumed;
+      // محاسبه افزایش‌ها (PURCHASE)
+      const totalPurchased = materialTransactions
+        .filter(t => t.type === 'PURCHASE')
+        .reduce((sum, t) => sum + t.quantity, 0);
+      
+      // محاسبه کاهش‌ها (DELIVERY + CONSUMPTION)
+      const totalDelivered = materialTransactions
+        .filter(t => t.type === 'DELIVERY')
+        .reduce((sum, t) => sum + t.quantity, 0);
+      
+      const totalConsumed = materialTransactions
+        .filter(t => t.type === 'CONSUMPTION')
+        .reduce((sum, t) => sum + t.quantity, 0);
+      
+      // موجودی نهایی
+      const quantity = totalPurchased - totalDelivered - totalConsumed;
       
       return {
         id: `stock-${idx}`,
@@ -59,10 +74,12 @@ export async function GET(req: NextRequest) {
         materialName: material.name,
         unit: material.unit,
         minStock: material.minStock,
-        quantity: quantity,
+        quantity: Math.max(0, quantity),
         reservedQuantity: 0,
-        availableQuantity: quantity,
+        availableQuantity: Math.max(0, quantity),
         totalPurchased: totalPurchased,
+        totalDelivered: totalDelivered,
+        totalConsumed: totalConsumed,
         pendingDelivery: 0,
         category: material.category?.name,
         project: { id: project.id, name: project.name, location: project.location },

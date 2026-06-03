@@ -903,8 +903,8 @@ function renderPage(key: PageKey, role: string, onPageChange: (page: PageKey) =>
     case 'materials':
       return isWarehouseRole ? <MaterialsPage /> : <MaterialsPage />;
 
-    case 'reports':
-      return isWarehouseRole ? <WarehouseKeeperDashboard /> : <ReportsPage />;
+      case 'reports':
+        return isWarehouseRole ? <WarehousePage /> : <ReportsPage />;
 
     case 'users':
       return <UsersPage />;

@@ -1,45 +1,26 @@
-// scripts/sync-stock.js
+// scripts/fix-transactions.js
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🔄 شروع هماهنگ‌سازی موجودی مصالح...');
-
-  const materials = await prisma.material.findMany();
-
-  for (const material of materials) {
-    const purchaseTransactions = await prisma.transaction.aggregate({
-      where: {
-        materialId: material.id,
-        type: 'PURCHASE',
-        warehouseConfirmed: true,
-      },
-      _sum: { quantity: true },
-    });
-
-    const consumptionTransactions = await prisma.transaction.aggregate({
-      where: {
-        materialId: material.id,
-        type: 'CONSUMPTION',
-        warehouseConfirmed: true,
-      },
-      _sum: { quantity: true },
-    });
-
-    const totalPurchased = purchaseTransactions._sum.quantity || 0;
-    const totalConsumed = consumptionTransactions._sum.quantity || 0;
-    const calculatedStock = totalPurchased - totalConsumed;
-
-    await prisma.material.update({
-      where: { id: material.id },
-      data: { stock: calculatedStock },
-    });
-
-    console.log(`✅ ${material.name}: ${material.stock} → ${calculatedStock}`);
-  }
-
-  console.log('🎉 هماهنگ‌سازی با موفقیت انجام شد!');
+  // حذف تراکنش CONSUMPTION برای سیمان تیپ ۲ (تکراری)
+  const result = await prisma.transaction.deleteMany({
+    where: {
+      materialId: 'cmpvpyx8w005ui67g88tn7vyj',
+      type: 'CONSUMPTION',
+      quantity: 40
+    }
+  });
+  
+  console.log(`✅ ${result.count} تراکنش CONSUMPTION حذف شد`);
+  
+  // حالا stock را دوباره محاسبه کن
+  const material = await prisma.material.findUnique({
+    where: { id: 'cmpvpyx8w005ui67g88tn7vyj' }
+  });
+  
+  console.log(`📦 سیمان تیپ ۲: stock جدید = ${material.stock}`);
 }
 
 main()

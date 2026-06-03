@@ -135,7 +135,7 @@ export default function Header({ currentPage, onPageChange, showSidebar = true, 
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="w-9 h-9 rounded-xl hover:bg-muted transition-colors hidden sm:flex"
+          className="w-9 h-9 rounded-xl hover:bg-muted transition-colors"
           suppressHydrationWarning
         >
           <Sun className="w-4 h-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
