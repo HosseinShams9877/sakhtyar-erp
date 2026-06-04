@@ -18,15 +18,32 @@ async function main() {
 
   console.log('\n📊 ===== اقلام فاکتور (PurchaseItem) =====\n');
   const items = await prisma.purchaseItem.findMany({
-    select: { id: true, purchaseId: true, materialName: true, quantity: true, unit: true }
+    select: { 
+      id: true, 
+      purchaseId: true, 
+      materialId: true,      // ✅ اضافه کن
+      materialName: true, 
+      quantity: true, 
+      unit: true 
+    }
   });
   console.table(items);
 
-  console.log('\n📊 ===== تراکنش‌ها (Transaction) =====\n');
+  console.log('\n📊 ===== تراکنش‌های تحویل (Transaction) =====\n');
   const transactions = await prisma.transaction.findMany({
-    select: { id: true, type: true, materialId: true, quantity: true, warehouseConfirmed: true }
+    where: { type: 'DELIVERY' },
+    select: { id: true, type: true, materialId: true, quantity: true, warehouseConfirmed: true, purchaseId: true, createdAt: true }
   });
   console.table(transactions);
+
+  // ✅ اضافه کن: بررسی تطابق materialId بین PurchaseItem و Material
+  console.log('\n📊 ===== بررسی تطابق materialId =====\n');
+  const itemsWithMaterial = await prisma.purchaseItem.findMany({
+    where: { materialId: { not: null } },
+    select: { id: true, materialId: true, materialName: true, quantity: true }
+  });
+  console.log(`تعداد آیتم‌هایی که materialId دارند: ${itemsWithMaterial.length}`);
+  console.table(itemsWithMaterial);
 }
 
 main()

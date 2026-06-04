@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const search = url.searchParams.get('search') || '';
+    const projectId = url.searchParams.get('projectId') || '';
 
     const where: any = {};
     if (search) {
@@ -19,29 +20,61 @@ export async function GET(req: NextRequest) {
       ];
     }
 
+    let supplierIds: string[] | null = null;
+    
+    if (projectId) {
+      // 1️⃣ فروشنده‌هایی که در SupplierProject ارتباط دارند
+      const supplierProjects = await db.supplierProject.findMany({
+        where: { projectId },
+        select: { supplierId: true },
+      });
+      const linkedSupplierIds = supplierProjects.map(sp => sp.supplierId);
+      
+      // 2️⃣ فروشنده‌هایی که در این پروژه خرید داشته‌اند
+      const purchases = await db.purchase.findMany({
+        where: { projectId },
+        select: { supplierId: true },
+        distinct: ['supplierId'],
+      });
+      const purchaseSupplierIds = purchases.map(p => p.supplierId);
+      
+      // 3️⃣ ترکیب (اتحاد) هر دو لیست
+      const allSupplierIds = [...new Set([...linkedSupplierIds, ...purchaseSupplierIds])];
+      
+      if (allSupplierIds.length === 0) {
+        return NextResponse.json([]);
+      }
+      
+      where.id = { in: allSupplierIds };
+    }
+
     const suppliers = await db.supplier.findMany({
       where,
       include: {
         purchases: {
+          where: projectId ? { projectId } : undefined,
           select: {
             totalAmount: true,
             paidAmount: true,
             status: true,
           },
         },
+        projects: {
+          include: { project: true },
+        },
       },
       orderBy: { companyName: 'asc' },
     });
 
-    // Compute purchase summary for each supplier
     const vendorsWithSummary = suppliers.map((supplier) => {
-      const totalInvoiceAmount = supplier.purchases.reduce((sum, p) => sum + p.totalAmount, 0);
-      const invoiceCount = supplier.purchases.length;
-      const { purchases, ...rest } = supplier;
+      const totalInvoiceAmount = supplier.purchases?.reduce((sum, p) => sum + p.totalAmount, 0) ?? 0;
+      const invoiceCount = supplier.purchases?.length ?? 0;
+      const { purchases, projects, ...rest } = supplier;
       return {
         ...rest,
         totalInvoiceAmount,
         invoiceCount,
+        projects: projects?.map(p => p.project) || [],
       };
     });
 
@@ -67,6 +100,7 @@ export async function POST(req: NextRequest) {
       debtCeiling,
       taxId,
       isActive,
+      projectIds = [],
     } = body;
 
     if (!companyName) {
@@ -92,7 +126,31 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(supplier, { status: 201 });
+    // ذخیره ارتباط با پروژه‌ها
+    if (projectIds.length > 0) {
+      await db.supplierProject.createMany({
+        data: projectIds.map((projectId: string) => ({
+          supplierId: supplier.id,
+          projectId: projectId,
+        })),
+        // skipDuplicates: true,  // ← در SQLite کار نمی‌کند، حذف شد
+      });
+    }
+
+    // برگرداندن فروشنده با پروژه‌ها
+    const supplierWithProjects = await db.supplier.findUnique({
+      where: { id: supplier.id },
+      include: {
+        projects: {
+          include: { project: true },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ...supplierWithProjects,
+      projects: supplierWithProjects?.projects?.map(p => p.project) || [],
+    }, { status: 201 });
   } catch (error: any) {
     console.error('Supplier create error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -102,7 +160,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, ...rest } = body;
+    const { id, projectIds, ...rest } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -119,9 +177,8 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // ✅ دریافت همه فیلدها از body
+    // به‌روزرسانی اطلاعات پایه
     const updateData: Record<string, unknown> = {};
-    
     if (rest.companyName !== undefined) updateData.companyName = rest.companyName;
     if (rest.contactName !== undefined) updateData.contactName = rest.contactName;
     if (rest.mobile !== undefined) updateData.mobile = rest.mobile || null;
@@ -134,12 +191,43 @@ export async function PUT(req: NextRequest) {
     if (rest.taxId !== undefined) updateData.taxId = rest.taxId || null;
     if (rest.isActive !== undefined) updateData.isActive = rest.isActive === true || rest.isActive === 'true';
 
-    const supplier = await db.supplier.update({
+    await db.supplier.update({
       where: { id },
       data: updateData,
     });
-    
-    return NextResponse.json(supplier);
+
+    // به‌روزرسانی ارتباط با پروژه‌ها
+    if (projectIds !== undefined) {
+      // حذف ارتباطات قبلی
+      await db.supplierProject.deleteMany({
+        where: { supplierId: id },
+      });
+      
+      // ایجاد ارتباطات جدید
+      if (projectIds.length > 0) {
+        await db.supplierProject.createMany({
+          data: projectIds.map((projectId: string) => ({
+            supplierId: id,
+            projectId: projectId,
+          })),
+        });
+      }
+    }
+
+    // برگرداندن فروشنده با پروژه‌ها
+    const supplierWithProjects = await db.supplier.findUnique({
+      where: { id },
+      include: {
+        projects: {
+          include: { project: true },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ...supplierWithProjects,
+      projects: supplierWithProjects?.projects?.map(p => p.project) || [],
+    });
   } catch (error: any) {
     console.error('Supplier update error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

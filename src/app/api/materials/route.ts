@@ -26,13 +26,14 @@ export async function GET(req: NextRequest) {
       where.categoryId = categoryId;
     }
 
-    // دریافت مصالح
+    // ✅ فقط مصالح را با stock مستقیم بگیر (بدون محاسبه از تراکنش‌ها)
     const materials = await db.material.findMany({
       where,
       select: {
         id: true,
         name: true,
         code: true,
+        stock: true,        // ← موجودی مستقیم
         unit: true,
         minStock: true,
         description: true,
@@ -50,38 +51,6 @@ export async function GET(req: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    // دریافت همه تراکنش‌های تأیید شده برای محاسبه موجودی لحظه‌ای
-    const allTransactions = await db.transaction.findMany({
-      where: {
-        projectId,
-        warehouseConfirmed: true,  // ✅ فقط تراکنش‌های تأیید شده
-      },
-    });
-
-    // محاسبه موجودی لحظه‌ای برای هر مصالح
-    const materialsWithStock = materials.map(material => {
-      const materialTransactions = allTransactions.filter(t => t.materialId === material.id);
-      
-      const totalPurchased = materialTransactions
-        .filter(t => t.type === 'PURCHASE')
-        .reduce((sum, t) => sum + t.quantity, 0);
-      
-      const totalDelivered = materialTransactions
-        .filter(t => t.type === 'DELIVERY')
-        .reduce((sum, t) => sum + t.quantity, 0);
-      
-      const totalConsumed = materialTransactions
-        .filter(t => t.type === 'CONSUMPTION')
-        .reduce((sum, t) => sum + t.quantity, 0);
-      
-      const stock = totalPurchased - totalDelivered - totalConsumed;
-      
-      return {
-        ...material,
-        stock: Math.max(0, stock),
-      };
-    });
-
     const categories = await db.materialCategory.findMany({
       select: {
         id: true,
@@ -90,7 +59,8 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ materials: materialsWithStock, categories });
+    // ✅ مستقیماً materials را برگردان (نه materialsWithStock)
+    return NextResponse.json({ materials, categories });
   } catch (error: any) {
     console.error('Error in GET /api/materials:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

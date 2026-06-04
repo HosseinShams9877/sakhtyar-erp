@@ -192,48 +192,48 @@ export default function WarehousePage() {
   }, []);
 
   // ─── Load Warehouse Stock ───
-
-  const loadStocks = useCallback(async () => {
-    if (!selectedProjectId) {
-      setStocks([]);
-      return;
-    }
-    setLoadingStocks(true);
-    try {
-      const res = await fetch(`/api/warehouse?projectId=${selectedProjectId}`);
-      console.log('📡 API Response status:', res.status);
-      console.log('📡 API URL:', `/api/warehouse?projectId=${selectedProjectId}`);
+const loadStocks = useCallback(async () => {
+  if (!selectedProjectId) {
+    setStocks([]);
+    return;
+  }
+  setLoadingStocks(true);
+  try {
+    // ✅ تغییر: استفاده از /api/materials به جای /api/warehouse
+    const res = await fetch(`/api/materials?projectId=${selectedProjectId}`);
+    
+    if (res.ok) {
+      const data = await res.json();
+      const materials = data.materials || [];
       
-      if (res.ok) {
-        const data = await res.json();
-        console.log('📦 Raw API Response (stocks):', data);
-        console.log('📦 Is Array?', Array.isArray(data));
-        console.log('📦 Length:', data.length);
-        
-        if (data.length > 0) {
-          console.log('📦 First item:', data[0]);
-          console.log('📦 First item material:', data[0].material);
-          console.log('📦 First item quantity:', data[0].quantity);
-        } else {
-          console.log('⚠️ No stock data returned from API');
-        }
-        
-        setStocks(Array.isArray(data) ? data : []);
-      } else {
-        const err = await res.json();
-        console.error('❌ API Error:', err);
-        toast.error(err.error || 'خطا در بارگذاری موجودی انبار');
-        setStocks([]);
-      }
-    } catch (error) {
-      console.error('❌ Fetch error:', error);
-      toast.error('خطا در بارگذاری موجودی انبار');
+      // تبدیل مواد به فرمت WarehouseStockItem
+      const stocksData = materials.map((material: any) => ({
+        id: material.id,
+        projectId: selectedProjectId,
+        materialId: material.id,
+        quantity: material.stock || 0,
+        materialName: material.name,
+        unit: material.unit,
+        minStock: material.minStock,
+        reservedQuantity: 0,  // اگر سیستم رزرو نداری، 0 بگذار
+        availableQuantity: material.stock || 0,
+        createdAt: material.createdAt,
+        updatedAt: material.updatedAt,
+        material: material,
+        project: { id: selectedProjectId, name: activeProject?.name || '' }
+      }));
+      
+      setStocks(stocksData);
+    } else {
       setStocks([]);
-    } finally {
-      setLoadingStocks(false);
     }
-  }, [selectedProjectId]);
-  
+  } catch (error) {
+    console.error('Error loading materials:', error);
+    setStocks([]);
+  } finally {
+    setLoadingStocks(false);
+  }
+}, [selectedProjectId, activeProject?.name]);
 
   // ─── Load Recent Transactions ───
 

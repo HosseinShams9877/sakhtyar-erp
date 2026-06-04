@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requirePermission } from '@/lib/api-auth';
 
 // ─── GET /api/deliveries ───
-// اگر query parameter "pending=true" باشد، فاکتورهای پرداخت شده و بدون تحویل را برمی‌گرداند
 export async function GET(req: NextRequest) {
   const auth = await requireAuth();
   if (!auth.success) return auth.response;
@@ -37,6 +36,7 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { purchaseDate: 'desc' },
       });
+       
 
       // تبدیل به فرمت مورد نیاز انباردار
       const pendingDeliveries = purchases.map(purchase => ({
@@ -104,6 +104,13 @@ export async function POST(req: NextRequest) {
     if (!purchase) {
       return NextResponse.json({ error: 'خرید یافت نشد' }, { status: 404 });
     }
+    console.log('🔍 purchase.projectId:', purchase.projectId);
+    console.log('🔍 purchase.items:', purchase.items.map(i => ({
+      id: i.id,
+      materialId: i.materialId,
+      materialName: i.materialName,
+      quantity: i.quantity,
+    })));
 
     if (purchase.status !== 'paid') {
       return NextResponse.json(

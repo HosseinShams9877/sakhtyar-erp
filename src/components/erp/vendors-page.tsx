@@ -5,8 +5,10 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/components/auth-provider';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { useProject } from '@/components/project-context';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -40,6 +42,7 @@ interface Vendor {
   isActive: boolean;
   totalInvoiceAmount: number;
   invoiceCount: number;
+  projects?: { id: string; name: string }[];
 }
 
 const emptyForm = {
@@ -54,10 +57,15 @@ const emptyForm = {
   debtCeiling: '',
   taxId: '',
   isActive: 'true',
+  projectIds: [] as string[],
 };
 
 export default function VendorsPage() {
+  const [allProjects, setAllProjects] = useState<{ id: string; name: string }[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const { activeProject } = useProject(); 
+  const { session } = useAuth();
+  const userRole = session?.user?.role;
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -78,22 +86,46 @@ export default function VendorsPage() {
       debtCeiling: '',
       taxId: '',
       isActive: 'true',
+      projectIds: [] as string[],
     });
   };
 
   const loadData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/vendors?search=${search}`);
+      const projectId = activeProject?.id || '';
+      const url = `/api/vendors?search=${search}&projectId=${projectId}`;
+      const res = await fetch(url);
       const data = await res.json();
+      console.log('🔍 API response sample:', data[0]); // ← ببین projects دارد یا نه
+      console.log('🔍 Full response:', data);
       setVendors(Array.isArray(data) ? data : (data?.vendors || []));
     } catch {
       setVendors([]);
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, activeProject?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        if (userRole === 'PURCHASER' && activeProject?.id) {
+          setAllProjects([activeProject]);
+        } else {
+          const res = await fetch('/api/projects');
+          const data = await res.json();
+          setAllProjects(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+        setAllProjects([]);
+      }
+    };
+    
+    fetchProjects();
+  }, [userRole, activeProject]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +150,7 @@ export default function VendorsPage() {
           debtCeiling: form.debtCeiling ? parseFloat(form.debtCeiling) : undefined,
           taxId: form.taxId || undefined,
           isActive: true,
+          projectIds: form.projectIds || [],
         }),
       });
       if (res.ok) {
@@ -137,6 +170,8 @@ export default function VendorsPage() {
   };
 
   const handleEdit = (v: Vendor) => {
+    console.log('✏️ Editing vendor:', v);
+    console.log('📁 Projects:', v.projects);
     setEditingId(v.id);
     setForm({
       companyName: v.companyName,
@@ -150,6 +185,7 @@ export default function VendorsPage() {
       debtCeiling: v.debtCeiling ? String(v.debtCeiling) : '',
       taxId: v.taxId || '',
       isActive: v.isActive ? 'true' : 'false',
+      projectIds: v.projects?.map(p => p.id) || []
     });
     setEditDialogOpen(true);
   };
@@ -178,6 +214,7 @@ export default function VendorsPage() {
           debtCeiling: form.debtCeiling ? parseFloat(form.debtCeiling) : null,
           taxId: form.taxId || null,
           isActive: form.isActive === 'true',
+          projectIds: form.projectIds || [],
         }),
       });
       if (res.ok) {
@@ -349,6 +386,36 @@ export default function VendorsPage() {
             dir="ltr"
           />
         </div>
+        <div className="space-y-2">
+  <Label className="text-xs font-semibold">پروژه‌های مرتبط</Label>
+  <div className="border rounded-xl p-3 space-y-2 max-h-40 overflow-y-auto">
+    {allProjects.length === 0 ? (
+      <p className="text-xs text-muted-foreground text-center py-2">پروژه‌ای یافت نشد</p>
+    ) : (
+      allProjects.map((project) => (
+        <div key={project.id} className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id={`project-${project.id}`}
+            checked={form.projectIds?.includes(project.id)}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setForm({ ...form, projectIds: [...(form.projectIds || []), project.id] });
+              } else {
+                setForm({ ...form, projectIds: (form.projectIds || []).filter(id => id !== project.id) });
+              }
+            }}
+            className="w-4 h-4 rounded border-gray-300"
+          />
+          <Label htmlFor={`project-${project.id}`} className="text-sm font-normal cursor-pointer">
+            {project.name}
+          </Label>
+        </div>
+      ))
+    )}
+  </div>
+  <p className="text-[10px] text-muted-foreground">فروشنده فقط در پروژه‌های انتخاب شده قابل انتخاب خواهد بود</p>
+</div>
       </div>
 
       {isEdit && (

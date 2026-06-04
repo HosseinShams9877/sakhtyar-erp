@@ -213,6 +213,8 @@ export async function POST(req: NextRequest) {
     const validItems = Array.isArray(items)
       ? items.filter((item: any) => item.materialName && item.quantity > 0 && item.unitPrice >= 0)
       : [];
+
+      console.log('🔍 [CREATE INVOICE] validItems before create:', JSON.stringify(validItems, null, 2));
     // ایجاد فاکتور
     const purchase = await db.purchase.create({
       data: {

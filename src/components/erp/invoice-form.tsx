@@ -263,7 +263,7 @@ const userRole = (session?.user as any)?.role;
       
       const [invRes, vndRes, prjRes, matRes] = await Promise.all([
         fetch(url),
-        fetch('/api/vendors'),
+        fetch(`/api/vendors?projectId=${projectId}`),
         fetch('/api/projects'),
         fetch(`/api/materials?projectId=${projectId}`),
       ]);
@@ -580,6 +580,7 @@ const loadMaterials = useCallback(async () => {
       const itemsData = items
         .filter(row => row.materialName.trim() !== '')
         .map((row) => ({
+          materialId: row.materialId,
           materialName: row.materialName,
           quantity: row.quantity,
           unit: row.unit,

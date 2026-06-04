@@ -138,6 +138,7 @@ model Project {
   purchaseResponsibleId String? // مسئول خرید
   warehouseKeeperId   String?  // انباردار
 
+  suppliers   SupplierProject[]
   purchases      Purchase[]
   deliveries     DeliveryConfirmation[]
   userAccess     UserProject[]
@@ -165,6 +166,7 @@ model Supplier {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  projects SupplierProject[]
   purchases    Purchase[]
   transactions Transaction[]
 }
@@ -449,4 +451,17 @@ model CustomFieldValue {
 
   customField CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
   user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// در schema.prisma
+model SupplierProject {
+  id         String   @id @default(cuid())
+  supplierId String
+  projectId  String
+  createdAt  DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, projectId])
 }

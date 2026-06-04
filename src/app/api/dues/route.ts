@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     try {
       const purchases = await db.purchase.findMany({
         where: {
-          status: { in: ['pending', 'partial', 'overdue'] },
+          status: { in: [ 'partial', 'overdue', 'approved', 'confirmed'] },
         },
         orderBy: { dueDate: 'asc' },
         include: {
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
     const search = url.searchParams.get('search') || '';
 
     const where: Record<string, unknown> = {
-      status: { in: ['pending', 'partial', 'overdue'] },
+      status: { in: [ 'partial', 'overdue' , 'approved', 'confirmed'] },
     };
 
     if (projectId) where.projectId = projectId;

@@ -1,6 +1,4 @@
-'use client';
-
-import React, { useState, useEffect, useCallback } from 'react';
+'use client';import React, { useState, useEffect, useCallback } from 'react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
 } from 'recharts';
@@ -18,12 +16,11 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { motion } from 'framer-motion';
 import { Label } from '@/components/ui/label';
-import { Camera, X, ClipboardList} from 'lucide-react'
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  Crown, FolderKanban, ShoppingBag, Warehouse as WarehouseIcon,
+  Crown, FolderKanban, ShoppingBag, WarehouseIcon,
   Wallet, AlertTriangle, CalendarClock, CheckCircle2,
   ChevronLeft, Truck, Building2, Plus, Search,
   Bell, BellRing, AlertCircle, AlertOctagon,
@@ -31,16 +28,30 @@ import {
   ArrowDownLeft, ArrowUpRight, PackageCheck,
   PackageX, ClipboardCheck, BarChart3, FileCheck2,
   TrendingUp, Users, Package, Timer, Shield, Settings,
+  Camera, X, ClipboardList, ChevronsUpDown, Minus
 } from 'lucide-react';
 import {
   formatNumber, formatCurrency, formatCurrencyShort,
   formatDate, formatDateShort, toPersianDigits,
-  ROLE_COLORS, ROLE_LABELS,
+  ROLE_COLORS, ROLE_LABELS, UNIT_LABELS
 } from '@/lib/rbac';
 import { toShamsi, fromShamsi } from '@/lib/persian';
 import ShamsiDatePicker from '@/components/ui/shamsi-date-picker';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 /* ═══════════════════════════════════════════════════════
    تایپ‌ها
@@ -62,6 +73,13 @@ interface Stats {
   activeProjects: number; totalProjects: number; totalSuppliers: number;
   totalPurchases: number; unpaidPurchases: number;
   activeUsers: number; totalUsers: number;
+}
+
+interface Vendor {
+  id: string;
+  companyName: string;
+  contactName: string;
+  projects?: { id: string }[];
 }
 
 interface PurchaseItem {
@@ -822,10 +840,46 @@ function SuperManagerUrgentPurchases({ urgentPurchases }: { urgentPurchases: Das
 }
 
 
+
 /* ═══════════════════════════════════════════════════════════════════════════
    ۲. ProjectManagerDashboard — مدیر پروژه
    دید محدوده به پروژه‌های اختصاص‌یافته: بدهی، سررسید، تایید
    ═══════════════════════════════════════════════════════════════════════════ */
+   let _rowKeyCounter = 0;
+function newRowKey(): string {
+  return `row-${Date.now()}-${++_rowKeyCounter}`;
+}
+
+function createEmptyItemRow(): InvoiceItemRow {
+  return {
+    _key: newRowKey(),
+    materialId: undefined,
+    materialName: '',
+    unit: 'KILOGRAM',
+    quantity: 0,
+    unitPrice: 0,
+    totalPrice: 0,
+  };
+}
+
+interface InvoiceItemRow {
+  _key: string;
+  materialId?: string;
+  materialName: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+interface Material {
+  id: string;
+  name: string;
+  code: string;
+  unit: string;
+  projectId?: string;
+}
+
 export function ProjectManagerDashboard() {
   const { data, loading } = useDashboardData();
 
@@ -1070,11 +1124,15 @@ export function ProjectManagerDashboard() {
     const [supplierSearch, setSupplierSearch] = useState('');
     const [showQuickForm, setShowQuickForm] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
+    const [items, setItems] = useState<InvoiceItemRow[]>([createEmptyItemRow()]);
+    const [materials, setMaterials] = useState<Material[]>([]);
+    const [openPopover, setOpenPopover] = useState<Record<string, boolean>>({});
     const [submitting, setSubmitting] = useState(false);
     const [deliveryCount, setDeliveryCount] = useState(0);
     const [correctiveCount, setCorrectiveCount] = useState(0);
     const [newSuppliersCount, setNewSuppliersCount] = useState(0);
     const { activeProject, projects, loading: projectLoading } = useProject(); 
+    const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
     const [quickFormData, setQuickFormData] = useState({
       invoiceNumber: "",
       amount: '',
@@ -1128,6 +1186,89 @@ useEffect(() => {
         })
         .catch(() => setNewSuppliersCount(0));
     }, []);
+
+    useEffect(() => {
+      if (quickFormData.projectId) {
+        fetch(`/api/vendors?projectId=${quickFormData.projectId}`)
+          .then(res => res.json())
+          .then(data => {
+            const vendors = Array.isArray(data) ? data : (data?.vendors || []);
+            setFilteredVendors(vendors);
+          })
+          .catch(err => {
+            console.error('Error fetching vendors:', err);
+            setFilteredVendors([]);
+          });
+      } else {
+        setFilteredVendors(data?.creditorSuppliers || []);
+      }
+    }, [quickFormData.projectId, data?.creditorSuppliers]);  
+
+    const loadMaterialsForProject = useCallback(async (projectId: string) => {
+      if (!projectId) {
+        setMaterials([]);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/materials?projectId=${projectId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMaterials(data.materials || []);
+        }
+      } catch (error) {
+        console.error('Error loading materials:', error);
+      }
+    }, []);
+    
+    useEffect(() => {
+      if (quickFormData.projectId) {
+        loadMaterialsForProject(quickFormData.projectId);
+      } else {
+        setMaterials([]);
+      }
+    }, [quickFormData.projectId, loadMaterialsForProject]);
+
+    const addItemRow = () => {
+      setItems((prev) => [...prev, createEmptyItemRow()]);
+    };
+    
+    const removeItemRow = (key: string) => {
+      if (items.length <= 1) {
+        toast.error('حداقل یک آیتم فاکتور الزامی است');
+        return;
+      }
+      setItems((prev) => prev.filter((r) => r._key !== key));
+    };
+    
+    const updateItem = (key: string, field: keyof InvoiceItemRow, value: string | number | null) => {
+      setItems((prev) =>
+        prev.map((row) => {
+          if (row._key !== key) return row;
+          const updated = { ...row, [field]: value ?? '' };
+          if (field === 'quantity' || field === 'unitPrice') {
+            updated.totalPrice = (Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0);
+          }
+          return updated;
+        })
+      );
+    };
+    
+    const selectMaterial = (key: string, material: Material) => {
+      setItems((prev) =>
+        prev.map((row) => {
+          if (row._key !== key) return row;
+          return {
+            ...row,
+            materialId: material.id,
+            materialName: material.name,
+            unit: material.unit,
+          };
+        })
+      );
+      setOpenPopover((prev) => ({ ...prev, [key]: false }));
+    };
+    
+    const itemsTotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
   
     const getLinkWithProject = (baseLink: string) => {
       if (activeProject?.id) {
@@ -1157,31 +1298,46 @@ useEffect(() => {
     const myPendingCount = alertSummary.total;
   
     const handleQuickSubmit = async () => {
-      if (!quickFormData.amount || !quickFormData.dueDate || !quickFormData.projectId || !quickFormData.vendorId) {
-        toast.error('لطفاً تمام فیلدها را تکمیل کنید');
+      if (!quickFormData.invoiceNumber || !quickFormData.projectId || !quickFormData.vendorId) {
+        toast.error('لطفاً تمام فیلدهای الزامی را تکمیل کنید');
         return;
       }
-  
+      if (items.length === 0 || !items.some((i) => i.materialName.trim())) {
+        toast.error('حداقل یک آیتم فاکتور با نام کالا وارد کنید');
+        return;
+      }
+    
       setSubmitting(true);
       try {
         const miladiDate = fromShamsi(quickFormData.dueDate);
-        
+        const itemsData = items
+          .filter(row => row.materialName.trim() !== '')
+          .map((row) => ({
+            materialId: row.materialId,
+            materialName: row.materialName,
+            quantity: row.quantity,
+            unit: row.unit,
+            unitPrice: row.unitPrice,
+            totalPrice: row.totalPrice,
+          }));
+    
         const response = await fetch('/api/invoices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             invoiceNumber: quickFormData.invoiceNumber,
-            amount: parseInt(quickFormData.amount),
+            amount: itemsTotal,
             dueDate: miladiDate.toISOString(),
             projectId: quickFormData.projectId,
             supplierId: quickFormData.vendorId,
             purchaseDate: new Date().toISOString(),
-            totalAmount: parseInt(quickFormData.amount),
+            totalAmount: itemsTotal,
             paidAmount: 0,
             status: 'pending',
+            items: itemsData,
           }),
         });
-  
+    
         if (response.ok) {
           toast.success('فاکتور با موفقیت ثبت شد');
           setShowQuickForm(false);
@@ -1192,6 +1348,7 @@ useEffect(() => {
             projectId: '', 
             vendorId: '' 
           });
+          setItems([createEmptyItemRow()]);
           setTimeout(() => window.location.reload(), 1000);
         } else {
           const error = await response.json();
@@ -1249,37 +1406,7 @@ useEffect(() => {
                       required
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      مبلغ فاکتور <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        placeholder="مبلغ را وارد کنید"
-                        value={quickFormData.amount}
-                        onChange={(e) => setQuickFormData({ ...quickFormData, amount: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none transition-all"
-                        required
-                      />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-sm pointer-events-none">
-                        ریال
-                      </span>
-                    </div>
-                  </div>
-  
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      تاریخ سررسید <span className="text-red-500">*</span>
-                    </label>
-                    <ShamsiDatePicker
-                      value={quickFormData.dueDate}
-                      onChange={(value) => setQuickFormData({ ...quickFormData, dueDate: value })}
-                      placeholder="انتخاب تاریخ سررسید"
-                    />
-                  </div>
-  
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                       پروژه <span className="text-red-500">*</span>
@@ -1299,23 +1426,152 @@ useEffect(() => {
                       )}
                     </select>
                   </div>
+<div>
+  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+    کالاها و خدمات <span className="text-red-500">*</span>
+  </label>
+  <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50 dark:bg-gray-800">
+          <tr>
+            <th className="px-3 py-2 text-right text-xs font-semibold">نام کالا</th>
+            <th className="px-3 py-2 text-right text-xs font-semibold">واحد</th>
+            <th className="px-3 py-2 text-center text-xs font-semibold">تعداد</th>
+            <th className="px-3 py-2 text-center text-xs font-semibold">قیمت واحد (ریال)</th>
+            <th className="px-3 py-2 text-center text-xs font-semibold">مبلغ (ریال)</th>
+            <th className="px-3 py-2 w-8"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((row) => (
+            <tr key={row._key} className="border-t border-gray-100 dark:border-gray-800">
+              <td className="px-3 py-2 min-w-[200px]">
+                <Popover open={openPopover[row._key]} onOpenChange={(open) => setOpenPopover(prev => ({ ...prev, [row._key]: open }))}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between h-8 text-xs">
+                      {row.materialId ? materials.find(m => m.id === row.materialId)?.name : "انتخاب کالا..."}
+                      <ChevronsUpDown className="mr-2 h-3 w-3 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0">
+                    <Command>
+                      <CommandInput placeholder="جستجوی کالا..." className="h-8 text-right" />
+                      <CommandList>
+                        <CommandEmpty>کالایی یافت نشد</CommandEmpty>
+                        <CommandGroup>
+                          {materials.map((material) => (
+                            <CommandItem
+                              key={material.id}
+                              value={material.name}
+                              onSelect={() => selectMaterial(row._key, material)}
+                              className="flex justify-between"
+                            >
+                              <span>{material.name}</span>
+                              <span className="text-[10px] text-gray-400">{UNIT_LABELS?.[material.unit] || material.unit}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </td>
+              <td className="px-3 py-2">
+                <select
+                  value={row.unit}
+                  onChange={(e) => updateItem(row._key, 'unit', e.target.value)}
+                  className="w-full h-8 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                >
+                  <option value="KILOGRAM">کیلوگرم</option>
+                  <option value="METRE">متر</option>
+                  <option value="PIECE">عدد</option>
+                  <option value="TON">تن</option>
+                </select>
+              </td>
+              <td className="px-3 py-2">
+                <input
+                  type="number"
+                  value={row.quantity || ''}
+                  onChange={(e) => updateItem(row._key, 'quantity', parseFloat(e.target.value) || 0)}
+                  className="w-full h-8 text-center text-xs rounded-lg border border-gray-200 dark:border-gray-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  dir="ltr"
+                />
+              </td>
+              <td className="px-3 py-2">
+                <input
+                  type="number"
+                  value={row.unitPrice || ''}
+                  onChange={(e) => updateItem(row._key, 'unitPrice', parseFloat(e.target.value) || 0)}
+                  className="w-full h-8 text-center text-xs rounded-lg border border-gray-200 dark:border-gray-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  dir="ltr"
+                />
+              </td>
+              <td className="px-3 py-2 text-center text-xs font-medium">
+                {toPersianDigits(row.totalPrice.toLocaleString())}
+              </td>
+              <td className="px-3 py-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => removeItemRow(row._key)}
+                  className="p-1 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <div className="p-2 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/30">
+      <button type="button" onClick={addItemRow} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700">
+        <Plus className="w-3.5 h-3.5" /> افزودن ردیف
+      </button>
+      <span className="text-sm font-bold">جمع کل: {formatCurrency(itemsTotal)}</span>
+    </div>
+  </div>
+</div>
   
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                      تامین‌کننده <span className="text-red-500">*</span>
+                      تاریخ سررسید <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      value={quickFormData.vendorId}
-                      onChange={(e) => setQuickFormData({ ...quickFormData, vendorId: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none transition-all"
-                      required
-                    >
-                      <option value="">انتخاب تامین‌کننده</option>
-                      {creditorSuppliers.map((s: any) => (
-                        <option key={s.id} value={s.id}>{s.companyName}</option>
-                      ))}
-                    </select>
+                    <ShamsiDatePicker
+                      value={quickFormData.dueDate}
+                      onChange={(value) => setQuickFormData({ ...quickFormData, dueDate: value })}
+                      placeholder="انتخاب تاریخ سررسید"
+                    />
                   </div>
+  
+                
+  
+                  <div>
+  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+    تامین‌کننده <span className="text-red-500">*</span>
+  </label>
+  <select
+    value={quickFormData.vendorId}
+    onChange={(e) => setQuickFormData({ ...quickFormData, vendorId: e.target.value })}
+    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none transition-all"
+    required
+    disabled={!quickFormData.projectId}
+  >
+    <option value="">
+      {quickFormData.projectId ? 'انتخاب تامین‌کننده' : 'ابتدا پروژه را انتخاب کنید'}
+    </option>
+    {quickFormData.projectId && filteredVendors.map((supplier: any) => (
+      <option key={supplier.id} value={supplier.id}>
+        {supplier.companyName}
+      </option>
+    ))}
+  </select>
+  {quickFormData.projectId && filteredVendors.length === 0 && (
+    <p className="text-xs text-amber-600 mt-1">
+      هیچ تامین‌کننده‌ای به این پروژه متصل نیست
+    </p>
+  )}
+</div>
   
                   <button
                     onClick={handleQuickSubmit}
