@@ -18,18 +18,18 @@ const API_ROLE_ACCESS: Record<string, string[]> = {
   '/api/vendors': ['SUPER_MANAGER', 'PURCHASER'],
   '/api/warehouse': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'WAREHOUSE_KEEPER'],
   '/api/users': ['SUPER_MANAGER', 'ADMIN'],
-  '/api/roles': ['ADMIN'],
+  '/api/roles': ['ADMIN', 'SUPER_MANAGER'],
   '/api/permissions': ['ADMIN'],
   '/api/settings': ['SUPER_MANAGER', 'ADMIN'],
   '/api/reports': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'ADMIN'],
   '/api/dashboard': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER', 'ADMIN'],
-  '/api/transactions': ['SUPER_MANAGER', 'PURCHASER'],
-  '/api/materials': ['SUPER_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER'],
+  '/api/transactions': ['SUPER_MANAGER','PROJECT_MANAGER' , 'PURCHASER' ,'WAREHOUSE_KEEPER'],
+  '/api/materials': ['SUPER_MANAGER', 'PROJECT_MANAGER' , 'PURCHASER', 'WAREHOUSE_KEEPER'],
   '/api/payments': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER'],
   '/api/invoices/approve': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER'],
   '/api/project-members': ['SUPER_MANAGER', 'ADMIN', 'PROJECT_MANAGER'],
   '/api/user-projects': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER', 'ADMIN'],
-  '/api/deliveries': ['SUPER_MANAGER', 'WAREHOUSE_KEEPER'],
+  '/api/deliveries': ['SUPER_MANAGER', 'PROJECT_MANAGER' , 'WAREHOUSE_KEEPER'],
 };
 
 function findMatchingApiRoute(pathname: string): string[] | null {

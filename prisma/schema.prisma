@@ -43,6 +43,7 @@ model User {
   customFieldValues CustomFieldValue[] // مقادیر فیلدهای سفارشی
   createdPurchases  Purchase[]        @relation("PurchaseCreator")
   transactions      Transaction[]     @relation("TransactionCreator")
+  shortageRequests ShortageRequest[]
   auditLogs         AuditLog[]        @relation("AuditLogUser")
 }
 
@@ -139,6 +140,7 @@ model Project {
   warehouseKeeperId   String?  // انباردار
 
   suppliers   SupplierProject[]
+  shortageRequests ShortageRequest[]
   purchases      Purchase[]
   deliveries     DeliveryConfirmation[]
   userAccess     UserProject[]
@@ -292,6 +294,7 @@ model Material {
 
   category     MaterialCategory @relation(fields: [categoryId], references: [id])
   project      Project          @relation(fields: [projectId], references: [id])
+  shortageRequests ShortageRequest[]
   transactions Transaction[]
 }
 
@@ -464,4 +467,28 @@ model SupplierProject {
   project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([supplierId, projectId])
+}
+
+model ShortageRequest {
+  id            String   @id @default(cuid())
+  materialId    String?  // ← تغییر به optional
+  materialName  String
+  quantity      Float
+  unit          String
+  currentStock  Float    @default(0)
+  minStock      Float    @default(0)
+  priority      String   @default("medium")
+  note          String?
+  projectId     String?  // ✅ همینطور optional
+  requestedById String?  // ✅ همینطور optional
+  status        String   @default("pending")
+  requestedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  material Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  requestedBy User?   @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+
+  @@map("shortage_requests")
 }

@@ -72,6 +72,12 @@ export default function UsersPage() {
   const [filterRole, setFilterRole] = useState('');
   const [loading, setLoading] = useState(true);
 
+const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+const [loadingProjects, setLoadingProjects] = useState(false);
+
+const [editSelectedProjects, setEditSelectedProjects] = useState<string[]>([]);
+
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({ ...emptyCreateForm });
@@ -119,12 +125,50 @@ export default function UsersPage() {
       if (res.ok) {
         const data = await res.json();
         const rolesArr = Array.isArray(data) ? data : (data.roles || []);
+        console.log('📋 [DEBUG] Roles loaded:', rolesArr); // ← لاگ اضافه کن
         setRoles(rolesArr);
+      } else {
+        // اگر API不存在، از نقش‌های ثابت استفاده کن
+        const fallbackRoles = [
+          { id: 'role_super_manager', name: 'SUPER_MANAGER', label: 'مدیر کل پروژه‌ها', color: 'purple' },
+          { id: 'role_project_manager', name: 'PROJECT_MANAGER', label: 'مدیر پروژه', color: 'blue' },
+          { id: 'role_purchaser', name: 'PURCHASER', label: 'مسئول خرید', color: 'amber' },
+          { id: 'role_warehouse_keeper', name: 'WAREHOUSE_KEEPER', label: 'انباردار', color: 'emerald' },
+          { id: 'role_admin', name: 'ADMIN', label: 'ادمین سیستم', color: 'red' },
+        ];
+        setRoles(fallbackRoles);
       }
     } catch {
-      // اشکالی ندارد — نقش‌ها از ROLE_KEYS استفاده می‌شود
+      // در خطا هم از نقش‌های ثابت استفاده کن
+      const fallbackRoles = [
+        { id: 'role_super_manager', name: 'SUPER_MANAGER', label: 'مدیر کل پروژه‌ها', color: 'purple' },
+        { id: 'role_project_manager', name: 'PROJECT_MANAGER', label: 'مدیر پروژه', color: 'blue' },
+        { id: 'role_purchaser', name: 'PURCHASER', label: 'مسئول خرید', color: 'amber' },
+        { id: 'role_warehouse_keeper', name: 'WAREHOUSE_KEEPER', label: 'انباردار', color: 'emerald' },
+        { id: 'role_admin', name: 'ADMIN', label: 'ادمین سیستم', color: 'red' },
+      ];
+      setRoles(fallbackRoles);
     }
   }, []);
+  const loadProjects = useCallback(async () => {
+    setLoadingProjects(true);
+    try {
+      const res = await fetch('/api/projects?status=active');
+      if (res.ok) {
+        const data = await res.json();
+        const projectsArr = Array.isArray(data) ? data : (data.projects || []);
+        setProjects(projectsArr);
+      }
+    } catch {
+      toast.error('خطا در بارگذاری پروژه‌ها');
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, []);
+  
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
 
   useEffect(() => { loadUsers(); loadRoles(); }, [loadUsers, loadRoles]);
 
@@ -167,8 +211,12 @@ export default function UsersPage() {
     }
     setCreating(true);
     try {
-      // پیدا کردن roleId از نقش انتخابی
+      // پیدا کردن نقش انتخاب شده و گرفتن name آن
       const selectedRole = roles.find(r => r.id === createForm.roleId);
+      const roleNameToSend = selectedRole?.name || createForm.roleId;
+      
+      console.log('📤 Sending roleName:', roleNameToSend);
+      
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -177,16 +225,17 @@ export default function UsersPage() {
           nationalCode: createForm.nationalCode,
           mobile: createForm.mobile,
           email: createForm.email || undefined,
-          roleId: createForm.roleId || undefined,
+          roleId: roleNameToSend,  // ← ارسال name نقش (مثلاً 'PURCHASER')
           phone: createForm.phone || undefined,
+          projectIds: selectedProjects.length > 0 ? selectedProjects : undefined,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         toast.success('کاربر جدید ثبت شد');
         setCreateForm({ ...emptyCreateForm });
+        setSelectedProjects([]);
         setCreateOpen(false);
-        // نمایش اطلاعات ورود
         setCreatedCredentials({
           name: createForm.name,
           nationalCode: createForm.nationalCode,
@@ -207,6 +256,10 @@ export default function UsersPage() {
 
   // ─── Edit ───
   const openEdit = (user: User) => {
+
+    console.log('🔍 [openEdit] User:', user);
+    console.log('🔍 [openEdit] user.roleId:', user.roleId);
+    console.log('🔍 [openEdit] user.role:', user.role);
     const roleName = getRoleName(user);
     const matchedRole = roles.find(r => r.name === roleName);
     setEditForm({
@@ -215,10 +268,23 @@ export default function UsersPage() {
       nationalCode: user.nationalCode || '',
       mobile: user.mobile || '',
       email: user.email || '',
-      roleId: matchedRole?.id || user.roleId || '',
+      roleId: user.roleId || '',
       phone: user.phone || '',
       isActive: user.isActive,
     });
+    
+    // دریافت پروژه‌های کاربر از users state
+    const foundUser = users.find(u => u.id === user.id);
+    // پشتیبانی از هر دو نام projectAccess و userProject
+    const projectAccess = (foundUser as any)?.projectAccess || (foundUser as any)?.userProject || [];
+    
+    if (projectAccess.length > 0) {
+      const projectIds = projectAccess.map((pa: any) => pa.project?.id || pa.projectId);
+      setEditSelectedProjects(projectIds.filter(Boolean));
+    } else {
+      setEditSelectedProjects([]);
+    }
+    
     setEditOpen(true);
   };
 
@@ -239,6 +305,7 @@ export default function UsersPage() {
         roleId: editForm.roleId || null,
         phone: editForm.phone || undefined,
         isActive: editForm.isActive,
+        projectIds: editSelectedProjects,
       };
       const res = await fetch('/api/users', {
         method: 'PUT',
@@ -351,123 +418,155 @@ export default function UsersPage() {
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">کاربر جدید</span>
             </Button>
-            <DialogContent className="max-w-md rounded-2xl" dir="rtl">
-              <DialogHeader>
-                <DialogTitle className="text-base font-bold">ثبت کاربر جدید</DialogTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  کد ملی به عنوان نام کاربری و شماره موبایل به عنوان رمز عبور خودکار تنظیم می‌شود
-                </p>
-              </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold">نام و نام خانوادگی *</Label>
-                  <Input
-                    value={createForm.name}
-                    onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                    className="input-modern rounded-xl"
-                    placeholder="مثال: احمد محمدی"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold flex items-center gap-1.5">
-                    <Fingerprint className="w-3.5 h-3.5" />
-                    کد ملی (نام کاربری ورود) *
-                  </Label>
-                  <Input
-                    value={createForm.nationalCode}
-                    onChange={(e) => setCreateForm({ ...createForm, nationalCode: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                    className="input-modern rounded-xl"
-                    placeholder="کد ملی ۱۰ رقمی"
-                    dir="ltr"
-                    maxLength={10}
-                    required
-                  />
-                  <p className="text-[10px] text-muted-foreground">کد ملی ۱۰ رقمی بدون خط تیره — این مقدار نام کاربری ورود خواهد بود</p>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold flex items-center gap-1.5">
-                    <Smartphone className="w-3.5 h-3.5" />
-                    شماره موبایل (رمز عبور ورود) *
-                  </Label>
-                  <Input
-                    value={createForm.mobile}
-                    onChange={(e) => setCreateForm({ ...createForm, mobile: e.target.value.replace(/\D/g, '').slice(0, 11) })}
-                    className="input-modern rounded-xl"
-                    placeholder="مثال: 09121234567"
-                    dir="ltr"
-                    maxLength={11}
-                    required
-                  />
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                    شماره موبایل به عنوان رمز عبور خودکار تنظیم می‌شود
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold">نقش *</Label>
-                    <Select
-                      value={createForm.roleId}
-                      onValueChange={(v) => setCreateForm({ ...createForm, roleId: v })}
-                    >
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue placeholder="انتخاب نقش" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roles.map((role) => (
-                          <SelectItem key={role.id} value={role.id}>{role.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold">شماره تماس ثابت</Label>
-                    <Input
-                      value={createForm.phone}
-                      onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                      className="input-modern rounded-xl"
-                      dir="ltr"
-                      placeholder="اختیاری"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold">ایمیل (اختیاری)</Label>
-                  <Input
-                    type="email"
-                    value={createForm.email}
-                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                    className="input-modern rounded-xl"
-                    dir="ltr"
-                    placeholder="ایمیل (اختیاری)"
-                  />
-                </div>
+            <DialogContent className="max-w-md rounded-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+  <DialogHeader className="sticky top-0 dark:bg-gray-900 z-10 pb-2">
+    <DialogTitle className="text-base font-bold">ثبت کاربر جدید</DialogTitle>
+    <p className="text-xs text-muted-foreground mt-1">
+      کد ملی به عنوان نام کاربری و شماره موبایل به عنوان رمز عبور خودکار تنظیم می‌شود
+    </p>
+  </DialogHeader>
+  <form onSubmit={handleCreate} className="space-y-3 mt-2">
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold">نام و نام خانوادگی *</Label>
+      <Input
+        value={createForm.name}
+        onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+        className="input-modern rounded-xl h-9 text-sm"
+        placeholder="مثال: احمد محمدی"
+        required
+      />
+    </div>
+    
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold flex items-center gap-1">
+        <Fingerprint className="w-3 h-3" />
+        کد ملی (نام کاربری) *
+      </Label>
+      <Input
+        value={createForm.nationalCode}
+        onChange={(e) => setCreateForm({ ...createForm, nationalCode: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+        className="input-modern rounded-xl h-9 text-sm"
+        placeholder="کد ملی ۱۰ رقمی"
+        dir="ltr"
+        maxLength={10}
+        required
+      />
+      <p className="text-[9px] text-muted-foreground">کد ملی ۱۰ رقمی بدون خط تیره</p>
+    </div>
+    
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold flex items-center gap-1">
+        <Smartphone className="w-3 h-3" />
+        شماره موبایل (رمز عبور) *
+      </Label>
+      <Input
+        value={createForm.mobile}
+        onChange={(e) => setCreateForm({ ...createForm, mobile: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+        className="input-modern rounded-xl h-9 text-sm"
+        placeholder="مثال: 09121234567"
+        dir="ltr"
+        maxLength={11}
+        required
+      />
+      <p className="text-[9px] text-amber-600 dark:text-amber-400">رمز عبور خودکار = شماره موبایل</p>
+    </div>
+    
+    <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold">نقش *</Label>
+        <Select value={createForm.roleId} onValueChange={(v) => setCreateForm({ ...createForm, roleId: v })}>
+          <SelectTrigger className="rounded-xl h-9 text-sm">
+            <SelectValue placeholder="انتخاب نقش" />
+          </SelectTrigger>
+          <SelectContent>
+            {roles.map((role) => (
+              <SelectItem key={role.id} value={role.id}>{role.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold">شماره تماس ثابت</Label>
+        <Input
+          value={createForm.phone}
+          onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+          className="input-modern rounded-xl h-9 text-sm"
+          dir="ltr"
+          placeholder="اختیاری"
+        />
+      </div>
+    </div>
+    
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold">ایمیل (اختیاری)</Label>
+      <Input
+        type="email"
+        value={createForm.email}
+        onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+        className="input-modern rounded-xl h-9 text-sm"
+        dir="ltr"
+        placeholder="ایمیل (اختیاری)"
+      />
+    </div>
 
-                {/* ─── پیش‌نمایش اطلاعات ورود ─── */}
-                {createForm.nationalCode && createForm.mobile && (
-                  <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-800/30 p-3 space-y-1.5">
-                    <p className="text-xs font-bold text-blue-700 dark:text-blue-300">اطلاعات ورود کاربر:</p>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground">نام کاربری:</span>
-                      <span className="font-mono font-bold text-blue-800 dark:text-blue-200" dir="ltr">{createForm.nationalCode}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground">رمز عبور:</span>
-                      <span className="font-mono font-bold text-blue-800 dark:text-blue-200" dir="ltr">{createForm.mobile}</span>
-                    </div>
-                  </div>
-                )}
+    {/* انتخاب پروژه‌ها - با ارتفاع محدود */}
+<div className="space-y-1.5">
+  <Label className="text-xs font-semibold">دسترسی به پروژه‌ها</Label>
+  <div className="border rounded-xl max-h-28 overflow-y-auto p-2 space-y-1 bg-muted/20">
+    {loadingProjects ? (
+      <div className="text-center py-2 text-muted-foreground text-xs">در حال بارگذاری...</div>
+    ) : projects.length === 0 ? (
+      <div className="text-center py-2 text-muted-foreground text-xs">پروژه‌ای یافت نشد</div>
+    ) : (
+      projects.map((project) => (
+        <label key={project.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selectedProjects.includes(project.id)}  // ← اینجا باید selectedProjects باشد نه editSelectedProjects
+            onChange={(e) => {
+              if (e.target.checked) {
+                setSelectedProjects([...selectedProjects, project.id]);  // ← اینجا setSelectedProjects
+              } else {
+                setSelectedProjects(selectedProjects.filter(id => id !== project.id));  // ← اینجا setSelectedProjects
+              }
+            }}
+            className="rounded border-gray-300 w-3.5 h-3.5"
+          />
+          <span className="text-xs">{project.name}</span>
+        </label>
+      ))
+    )}
+  </div>
+  <p className="text-[9px] text-muted-foreground">
+    {selectedProjects.length === 0 ? 'بدون انتخاب = دسترسی به همه پروژه‌ها' : `${toPersianDigits(selectedProjects.length)} پروژه انتخاب شده`}
+  </p>
+</div>
 
-                <div className="flex gap-3 justify-end">
-                  <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} className="rounded-xl">
-                    انصراف
-                  </Button>
-                  <Button type="submit" disabled={creating} className="gradient-primary hover:opacity-90 rounded-xl shadow-soft">
-                    {creating ? '...' : 'ثبت کاربر'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
+    {/* پیش‌نمایش اطلاعات ورود */}
+    {createForm.nationalCode && createForm.mobile && (
+      <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/50 p-2 space-y-1">
+        <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300">اطلاعات ورود:</p>
+        <div className="flex items-center justify-between text-[10px]">
+          <span className="text-muted-foreground">نام کاربری:</span>
+          <span className="font-mono font-bold" dir="ltr">{createForm.nationalCode}</span>
+        </div>
+        <div className="flex items-center justify-between text-[10px]">
+          <span className="text-muted-foreground">رمز عبور:</span>
+          <span className="font-mono font-bold" dir="ltr">{createForm.mobile}</span>
+        </div>
+      </div>
+    )}
+
+    <div className="flex gap-3 justify-end pt-2 sticky bottom-0  dark:bg-gray-900 py-2 border-t">
+      <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} className="rounded-xl h-8 text-xs">
+        انصراف
+      </Button>
+      <Button type="submit" disabled={creating} className="gradient-primary hover:opacity-90 rounded-xl h-8 text-xs shadow-soft">
+        {creating ? '...' : 'ثبت کاربر'}
+      </Button>
+    </div>
+  </form>
+</DialogContent>
           </Dialog>
         </div>
       </div>
@@ -601,114 +700,147 @@ export default function UsersPage() {
 
       {/* ─── Edit Dialog ─── */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-md rounded-2xl" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold">ویرایش کاربر</DialogTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              تغییر کد ملی یا شماره موبایل، اطلاعات ورود را هم به‌روزرسانی می‌کند
-            </p>
-          </DialogHeader>
-          <form onSubmit={handleEdit} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">نام و نام خانوادگی *</Label>
-              <Input
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className="input-modern rounded-xl"
-                required
+  <DialogContent className="max-w-md rounded-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+    <DialogHeader className="sticky top-0  dark:bg-gray-900 z-10 pb-2">
+      <DialogTitle className="text-base font-bold">ویرایش کاربر</DialogTitle>
+
+    </DialogHeader>
+    <form onSubmit={handleEdit} className="space-y-3 mt-2">
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold">نام و نام خانوادگی *</Label>
+        <Input
+          value={editForm.name}
+          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+          className="input-modern rounded-xl h-9 text-sm"
+          required
+        />
+      </div>
+      
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold flex items-center gap-1">
+          <Fingerprint className="w-3 h-3" />
+          کد ملی (نام کاربری) *
+        </Label>
+        <Input
+          value={editForm.nationalCode}
+          onChange={(e) => setEditForm({ ...editForm, nationalCode: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+          className="input-modern rounded-xl h-9 text-sm"
+          dir="ltr"
+          maxLength={10}
+          required
+        />
+      </div>
+      
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold flex items-center gap-1">
+          <Smartphone className="w-3 h-3" />
+          شماره موبایل (رمز عبور) *
+        </Label>
+        <Input
+          value={editForm.mobile}
+          onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+          className="input-modern rounded-xl h-9 text-sm"
+          dir="ltr"
+          maxLength={11}
+          required
+        />
+        <p className="text-[9px] text-amber-600 dark:text-amber-400">
+          اگر شماره موبایل تغییر کند، رمز عبور ورود هم خودکار به‌روزرسانی می‌شود
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold">نقش *</Label>
+          <Select
+            value={editForm.roleId}
+            onValueChange={(v) => setEditForm({ ...editForm, roleId: v })}
+          >
+            <SelectTrigger className="rounded-xl h-9 text-sm">
+              <SelectValue placeholder="انتخاب نقش" />
+            </SelectTrigger>
+            <SelectContent>
+              {roles.map((role) => (
+                <SelectItem key={role.id} value={role.id}>{role.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold">شماره تماس ثابت</Label>
+          <Input
+            value={editForm.phone}
+            onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+            className="input-modern rounded-xl h-9 text-sm"
+            dir="ltr"
+          />
+        </div>
+      </div>
+      
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold">ایمیل (اختیاری)</Label>
+        <Input
+          type="email"
+          value={editForm.email}
+          onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+          className="input-modern rounded-xl h-9 text-sm"
+          dir="ltr"
+        />
+      </div>
+
+      {/* انتخاب پروژه‌ها */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold">دسترسی به پروژه‌ها</Label>
+        <div className="border rounded-xl max-h-28 overflow-y-auto p-2 space-y-1 bg-muted/20">
+          {projects.map((project) => (
+            <label key={project.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={editSelectedProjects.includes(project.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setEditSelectedProjects([...editSelectedProjects, project.id]);
+                  } else {
+                    setEditSelectedProjects(editSelectedProjects.filter(id => id !== project.id));
+                  }
+                }}
+                className="rounded border-gray-300 w-3.5 h-3.5"
               />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Fingerprint className="w-3.5 h-3.5" />
-                کد ملی (نام کاربری) *
-              </Label>
-              <Input
-                value={editForm.nationalCode}
-                onChange={(e) => setEditForm({ ...editForm, nationalCode: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                className="input-modern rounded-xl"
-                dir="ltr"
-                maxLength={10}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Smartphone className="w-3.5 h-3.5" />
-                شماره موبایل (رمز عبور) *
-              </Label>
-              <Input
-                value={editForm.mobile}
-                onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value.replace(/\D/g, '').slice(0, 11) })}
-                className="input-modern rounded-xl"
-                dir="ltr"
-                maxLength={11}
-                required
-              />
-              <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                اگر شماره موبایل تغییر کند، رمز عبور ورود هم خودکار به‌روزرسانی می‌شود
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold">نقش *</Label>
-                <Select
-                  value={editForm.roleId}
-                  onValueChange={(v) => setEditForm({ ...editForm, roleId: v })}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="انتخاب نقش" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role) => (
-                      <SelectItem key={role.id} value={role.id}>{role.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold">شماره تماس ثابت</Label>
-                <Input
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  className="input-modern rounded-xl"
-                  dir="ltr"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">ایمیل (اختیاری)</Label>
-              <Input
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                className="input-modern rounded-xl"
-                dir="ltr"
-              />
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/60 p-3">
-              <div className="space-y-0.5">
-                <Label className="text-xs font-semibold">وضعیت حساب کاربری</Label>
-                <p className="text-[10px] text-muted-foreground">
-                  {editForm.isActive ? 'کاربر فعال است و می‌تواند وارد شود' : 'کاربر غیرفعال است و دسترسی ندارد'}
-                </p>
-              </div>
-              <Switch
-                checked={editForm.isActive}
-                onCheckedChange={(checked) => setEditForm({ ...editForm, isActive: checked })}
-              />
-            </div>
-            <div className="flex gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)} className="rounded-xl">
-                انصراف
-              </Button>
-              <Button type="submit" disabled={editing} className="gradient-primary hover:opacity-90 rounded-xl shadow-soft">
-                {editing ? '...' : 'به‌روزرسانی'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+              <span className="text-xs">{project.name}</span>
+            </label>
+          ))}
+          {projects.length === 0 && (
+            <div className="text-center py-2 text-muted-foreground text-xs">پروژه‌ای یافت نشد</div>
+          )}
+        </div>
+      </div>
+
+      {/* وضعیت حساب */}
+      <div className="flex items-center justify-between rounded-xl bg-muted/60 p-2.5">
+        <div className="space-y-0.5">
+          <Label className="text-xs font-semibold">وضعیت حساب کاربری</Label>
+          <p className="text-[9px] text-muted-foreground">
+            {editForm.isActive ? 'کاربر فعال است و می‌تواند وارد شود' : 'کاربر غیرفعال است و دسترسی ندارد'}
+          </p>
+        </div>
+        <Switch
+          checked={editForm.isActive}
+          onCheckedChange={(checked) => setEditForm({ ...editForm, isActive: checked })}
+        />
+      </div>
+
+      {/* دکمه‌ها */}
+      <div className="flex gap-3 justify-end pt-2 sticky bottom-0 bg-white dark:bg-gray-900 py-2 border-t">
+        <Button type="button" variant="outline" onClick={() => setEditOpen(false)} className="rounded-xl h-8 text-xs">
+          انصراف
+        </Button>
+        <Button type="submit" disabled={editing} className="gradient-primary hover:opacity-90 rounded-xl h-8 text-xs shadow-soft">
+          {editing ? '...' : 'به‌روزرسانی'}
+        </Button>
+      </div>
+    </form>
+  </DialogContent>
+</Dialog>
 
       {/* ─── Credential Display Dialog ─── */}
       <Dialog open={credentialsOpen} onOpenChange={setCredentialsOpen}>

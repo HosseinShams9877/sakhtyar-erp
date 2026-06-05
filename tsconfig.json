@@ -35,7 +35,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
-  ],
+, "check-project-member.mjs", "fill-project-member.mjs"  ],
   "exclude": [
     "node_modules",
     "skills",

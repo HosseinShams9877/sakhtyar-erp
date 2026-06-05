@@ -99,15 +99,16 @@ export async function GET(req: NextRequest) {
     }
 
     // فیلتر بر اساس نقش (ABAC)
-    if (auth.role === 'WAREHOUSE_KEEPER' || auth.role === 'PROJECT_MANAGER') {
-      const userProjects = await db.userProject.findMany({
-        where: { userId: auth.userId },
-        select: { projectId: true },
-      });
-      const projectIds = userProjects.map(up => up.projectId);
-      where.projectId = { in: projectIds };
-    }
-
+if (!projectId && (auth.role === 'WAREHOUSE_KEEPER' || auth.role === 'PROJECT_MANAGER')) {
+  const userProjects = await db.userProject.findMany({
+    where: { userId: auth.userId },
+    select: { projectId: true },
+  });
+  const projectIds = userProjects.map(up => up.projectId);
+  if (projectIds.length > 0) {
+    where.projectId = { in: projectIds };
+  }
+}
     const purchases = await db.purchase.findMany({
       where,
       include: {

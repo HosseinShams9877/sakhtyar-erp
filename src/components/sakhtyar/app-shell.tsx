@@ -92,12 +92,12 @@ const pageVariants = {
 // انباردار و ادمین داشبورد (محلی)
 // ═══════════════════════════════════════════════════════════
 
-
-
 function WarehouseKeeperDashboard({ onPageChange }: { onPageChange?: (page: PageKey) => void }) {
   const { activeProject } = useProject();
   const isMobile = useIsMobile();
-  
+  const { session } = useAuth();  
+  const userId = (session?.user as any)?.id;
+  const [submitting, setSubmitting] = useState(false);
   // Stateها
   const [materials, setMaterials] = useState<any[]>([]);
   const [pendingDeliveries, setPendingDeliveries] = useState<any[]>([]);
@@ -108,8 +108,10 @@ function WarehouseKeeperDashboard({ onPageChange }: { onPageChange?: (page: Page
   const [selectedMaterialDetail, setSelectedMaterialDetail] = useState<any>(null);
 
   // داخل WarehouseKeeperDashboard، با بقیه useStateها:
-const [shortageUnit, setShortageUnit] = useState<'KILOGRAM' | 'PIECE'>('KILOGRAM');
+const [shortageUnit, setShortageUnit] = useState<string>('KILOGRAM');
 const [notes, setNotes] = useState('');
+
+const [itemActualQuantities, setItemActualQuantities] = useState<Record<string, { actual: number; discrepancy: string }>>({});
   
   // دیالوگ‌ها
   const [cameraDialogOpen, setCameraDialogOpen] = useState(false);
@@ -225,22 +227,9 @@ const uniqueUnits = React.useMemo(() => {
   const handleConfirmSubmit = async () => {
     if (!selectedDelivery) return;
     
+    setSubmitting(true);
     try {
-      // لاگ 1: بررسی selectedDelivery
-      console.log('🔍 [FRONTEND] selectedDelivery:', JSON.stringify(selectedDelivery, null, 2));
-      console.log('🔍 [FRONTEND] selectedDelivery.items:', selectedDelivery.items);
-      
-      // بررسی materialId در هر آیتم
-      if (selectedDelivery.items) {
-        selectedDelivery.items.forEach((item, idx) => {
-          console.log(`🔍 [FRONTEND] Item ${idx}:`, {
-            materialId: item.materialId,
-            materialName: item.materialName,
-            quantity: item.quantity,
-          });
-        });
-      }
-      
+      // ساخت payload با مقادیر واقعی و مغایرت‌ها
       const payload = {
         deliveryId: selectedDelivery.id,
         confirmedBy: 'انباردار',
@@ -249,12 +238,12 @@ const uniqueUnits = React.useMemo(() => {
         items: selectedDelivery.items?.map((item: any) => ({
           materialId: item.materialId,
           materialName: item.materialName,
-          quantity: item.quantity,
+          quantity: item.quantity, // مقدار فاکتور
+          actualQuantity: itemActualQuantities[item.materialId]?.actual || item.quantity,
+          discrepancy: itemActualQuantities[item.materialId]?.discrepancy || null,
           unit: item.unit,
         })) || [],
       };
-      
-      console.log('📤 [FRONTEND] Sending payload:', JSON.stringify(payload, null, 2));
       
       const res = await fetch('/api/deliveries', {
         method: 'POST',
@@ -262,32 +251,23 @@ const uniqueUnits = React.useMemo(() => {
         body: JSON.stringify(payload),
       });
       
-      console.log('📥 [FRONTEND] Response status:', res.status);
-      
-      const responseText = await res.text();
-      console.log('📥 [FRONTEND] Response body:', responseText);
-      
       if (res.ok) {
         toast.success('تحویل بار با موفقیت تایید شد');
         setConfirmDialogOpen(false);
         setCapturedImage(null);
+        setNotes('');
+        setItemActualQuantities({});
         loadData();
       } else {
-        let errorMsg = 'خطا در تایید تحویل';
-        try {
-          const errorJson = JSON.parse(responseText);
-          errorMsg = errorJson.error || errorMsg;
-        } catch {
-          errorMsg = responseText || errorMsg;
-        }
-        toast.error(errorMsg);
+        const err = await res.json();
+        toast.error(err.error || 'خطا در تایید تحویل');
       }
     } catch (err) {
-      console.error('❌ [FRONTEND] Fetch error:', err);
       toast.error('خطا در ارتباط با سرور');
+    } finally {
+      setSubmitting(false);
     }
   };
-
   // تابع انتخاب فایل (تصویر یا PDF)
 const handleFileSelect = (file: File) => {
   // بررسی حجم فایل (حداکثر 5 مگابایت)
@@ -315,44 +295,51 @@ const handleFileSelect = (file: File) => {
     setCapturedImage(file.name);
   }
 };
-  const handleRequestShortage = async () => {
-    if (!selectedMaterial?.id || !selectedMaterial?.name || !shortageQuantity) {
-      toast.error('لطفاً مصالح و مقدار را انتخاب کنید');
-      return;
+const handleRequestShortage = async () => {
+  if (!selectedMaterial?.id || !selectedMaterial?.name || !shortageQuantity) {
+    toast.error('لطفاً مصالح و مقدار را انتخاب کنید');
+    return;
+  }
+
+  setSubmitting(true);  // ✅ الان کار می‌کند
+  try {
+    const response = await fetch('/api/shortage-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        materialId: selectedMaterial.id,
+        materialName: selectedMaterial.name,
+        quantity: parseFloat(shortageQuantity),
+        unit: shortageUnit,
+        currentStock: selectedMaterial.stock,
+        minStock: selectedMaterial.minStock,
+        priority: shortagePriority,
+        note: shortageNote,
+        projectId: activeProject?.id,
+        requestedById: userId, 
+      }),
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      toast.success('درخواست کسری با موفقیت ثبت شد');
+      setShortageDialogOpen(false);
+      setSelectedMaterial(null);
+      setShortageQuantity('');
+      setShortageNote('');
+      setShortagePriority('medium');
+      loadData(); // ریلود کردن لیست مواد
+    } else {
+      toast.error(result.error || 'خطا در ثبت درخواست');
     }
-    
-    try {
-      const res = await fetch('/api/shortage-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          materialId: selectedMaterial.id,
-          materialName: selectedMaterial.name,
-          quantity: parseFloat(shortageQuantity),
-          unit: shortageUnit,
-          currentStock: selectedMaterial.stock,
-          minStock: selectedMaterial.minStock,
-          priority: shortagePriority,
-          note: shortageNote,
-          projectId: activeProject?.id,
-        }),
-      });
-      
-      if (res.ok) {
-        toast.success('درخواست کسری مصالح با موفقیت ثبت شد');
-        setShortageDialogOpen(false);
-        setSelectedMaterial(null);
-        setShortageQuantity('');
-        setShortageUnit('KILOGRAM');
-        setShortageNote('');
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'خطا در ثبت درخواست');
-      }
-    } catch {
-      toast.error('خطا در ارتباط با سرور');
-    }
-  };
+  } catch (error) {
+    console.error('Error:', error);
+    toast.error('خطا در ارتباط با سرور');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const handleCameraCapture = () => {
     setCapturedImage('/api/placeholder/400/300');
@@ -691,21 +678,24 @@ console.log('مصالح:', materials);
       <div>
         <Label className="text-xs font-semibold">انتخاب مصالح *</Label>
         <Select 
-          value={selectedMaterial?.id || ''}
-          onValueChange={(value) => {
-            const material = materials.find(m => m.id === value);
-            if (material) {
-              setSelectedMaterial({
-                id: material.id,
-                name: material.name,
-                unit: material.unit,
-                stock: material.stock,
-                minStock: material.minStock
-              });
-              setShortageUnit(material.unit === 'KILOGRAM' ? 'KILOGRAM' : 'PIECE');
-            }
-          }}
-        >
+  value={selectedMaterial?.id || ''}
+  onValueChange={(value) => {
+    const material = materials.find(m => m.id === value);
+    if (material) {
+      setSelectedMaterial({
+        id: material.id,
+        name: material.name,
+        unit: material.unit,
+        stock: material.stock,
+        minStock: material.minStock
+      });
+      // ✅ واحد اندازه‌گیری را به صورت خودکار از material.unit تنظیم کن
+      setShortageUnit(material.unit === 'KILOGRAM' ? 'KILOGRAM' : 
+                     material.unit === 'TON' ? 'TON' : 
+                     material.unit === 'SQUARE_METER' ? 'SQUARE_METER' : 'PIECE');
+    }
+  }}
+>
           <SelectTrigger className="rounded-xl mt-1 h-12">
             <SelectValue placeholder="انتخاب مصالح..." />
           </SelectTrigger>
@@ -801,6 +791,7 @@ console.log('مصالح:', materials);
       
       <Button
         onClick={handleRequestShortage}
+        disabled={submitting}
         className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl py-5 text-base font-bold"
       >
         ارسال درخواست
@@ -809,17 +800,18 @@ console.log('مصالح:', materials);
   </DialogContent>
 </Dialog>
 
-      {/* دیالوگ تایید تحویل - نسخه با دوربین + آپلود فایل */}
+{/* دیالوگ تایید تحویل - نسخه با قابلیت ویرایش مقدار هر آیتم */}
 <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-  <DialogContent className="max-w-sm rounded-2xl" dir="rtl">
-    <DialogHeader>
+  <DialogContent className="max-w-md rounded-2xl max-h-[90vh] overflow-hidden flex flex-col" dir="rtl">
+    <DialogHeader className="flex-shrink-0">
       <DialogTitle className="flex items-center gap-2 text-base">
         <CheckCircle2 className="w-5 h-5 text-emerald-500" />
         تایید تحویل بار
       </DialogTitle>
     </DialogHeader>
     
-    <div className="space-y-4 mt-2">
+    <div className="space-y-4 mt-2 flex-1 overflow-y-auto">
+      {/* اطلاعات فاکتور */}
       <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-4 text-center">
         <Truck className="w-8 h-8 mx-auto mb-2 text-emerald-600" />
         <p className="text-sm font-bold">
@@ -830,17 +822,109 @@ console.log('مصالح:', materials);
         </p>
       </div>
       
-      {/* ✅ بخش آپلود/دوربین */}
+     {/* جدول اقلام */}
+<div>
+  <Label className="text-xs font-semibold mb-2 block">اقلام بارنامه</Label>
+  <div className="border rounded-xl overflow-hidden">
+    <div className="bg-gray-100 dark:bg-gray-800 p-2 grid grid-cols-3 gap-2 text-[10px] font-bold">
+      <span>نام کالا</span>
+      <span className="text-center">مقدار فاکتور</span>
+      <span className="text-center">مقدار واقعی</span>
+    </div>
+    
+    <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-52 overflow-y-auto">
+      {selectedDelivery?.items?.map((item: any, index: number) => {
+        const materialId = item.materialId || `item_${index}`;
+        const currentActualValue = itemActualQuantities[materialId]?.actual;
+        const currentActual = (currentActualValue !== undefined && !isNaN(currentActualValue)) 
+          ? currentActualValue 
+          : (item.quantity || 0);
+        const currentDiscrepancy = itemActualQuantities[materialId]?.discrepancy ?? '';
+        const isDifferent = currentActual !== item.quantity;
+        
+        // واحد اندازه‌گیری
+        const unit = item.unit || 'KILOGRAM';
+        const unitLabel = unit === 'KILOGRAM' ? 'کیلوگرم' : 
+                         unit === 'TON' ? 'تن' : 
+                         unit === 'SQUARE_METER' ? 'متر مربع' : 
+                         unit === 'METER' ? 'متر' : 'عدد';
+        
+        return (
+          <div key={index} className="p-2">
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-xs font-medium truncate">{item.materialName}</span>
+              
+              {/* مقدار فاکتور با واحد */}
+              <span className="text-center text-xs">
+                {toPersianDigits(item.quantity || 0)} {unitLabel}
+              </span>
+              
+              {/* مقدار واقعی با واحد */}
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  step="any"
+                  value={currentActual}
+                  onChange={(e) => {
+                    const newVal = parseFloat(e.target.value);
+                    const validNewVal = isNaN(newVal) ? 0 : newVal;
+                    setItemActualQuantities(prev => ({
+                      ...prev,
+                      [materialId]: {
+                        actual: validNewVal,
+                        discrepancy: prev[materialId]?.discrepancy || ''
+                      }
+                    }));
+                  }}
+                  className={`w-full text-center text-xs rounded-lg border p-1 ${
+                    isDifferent ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/20' : 'border-gray-200'
+                  }`}
+                  dir="ltr"
+                />
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">{unitLabel}</span>
+              </div>
+            </div>
+            
+            {/* بخش توضیح مغایرت */}
+            {isDifferent && (
+              <div className="mt-2 pt-2 border-t border-dashed border-gray-200">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-3 h-3 text-orange-500" />
+                  <span className="text-[10px] font-semibold text-orange-600">مغایرت در تحویل</span>
+                </div>
+                <textarea
+                  placeholder={`توضیح مغایرت (مثلاً: ${Math.abs(currentActual - (item.quantity || 0))} ${unitLabel} کم شده)...`}
+                  value={currentDiscrepancy}
+                  onChange={(e) => {
+                    setItemActualQuantities(prev => ({
+                      ...prev,
+                      [materialId]: {
+                        actual: prev[materialId]?.actual ?? item.quantity,
+                        discrepancy: e.target.value
+                      }
+                    }));
+                  }}
+                  className="w-full text-xs rounded-lg border border-orange-200 p-2 mt-1"
+                  rows={2}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</div>
+      
+      {/* آپلود مدرک */}
       <div>
         <Label className="text-xs font-semibold">مدرک تحویل (بارنامه/رسید)</Label>
         <div className="mt-2 space-y-3">
-          {/* دو دکمه برای انتخاب روش */}
           <div className="flex gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => {
-                // باز کردن دوربین
                 const input = document.createElement('input');
                 input.type = 'file';
                 input.accept = 'image/*';
@@ -862,7 +946,7 @@ console.log('مصالح:', materials);
               onClick={() => {
                 const input = document.createElement('input');
                 input.type = 'file';
-                input.accept = 'image/*,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
+                input.accept = 'image/*,application/pdf';
                 input.onchange = (e) => {
                   const file = (e.target as HTMLInputElement).files?.[0];
                   if (file) handleFileSelect(file);
@@ -876,28 +960,14 @@ console.log('مصالح:', materials);
             </Button>
           </div>
 
-          {/* پیش‌نمایش فایل */}
           {capturedImage && (
-            <div className="relative border-2 border-emerald-300 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-800">
+            <div className="relative border-2 border-emerald-300 rounded-xl overflow-hidden">
               {capturedImage.startsWith('data:image') ? (
-                <img
-                  src={capturedImage}
-                  alt="مدرک تحویل"
-                  className="w-full h-32 object-cover"
-                />
-              ) : capturedImage.endsWith('.pdf') || capturedImage.includes('application/pdf') ? (
-                <div className="flex flex-col items-center justify-center p-4">
-                  <FileText className="w-10 h-10 text-red-500" />
-                  <span className="text-xs text-muted-foreground mt-1 truncate max-w-full">
-                    {capturedImage.split('/').pop() || 'فایل PDF'}
-                  </span>
-                </div>
+                <img src={capturedImage} alt="مدرک تحویل" className="w-full h-32 object-cover" />
               ) : (
-                <div className="flex flex-col items-center justify-center p-4">
-                  <FileText className="w-10 h-10 text-blue-500" />
-                  <span className="text-xs text-muted-foreground mt-1 truncate max-w-full">
-                    {capturedImage.split('/').pop() || 'فایل پیوست'}
-                  </span>
+                <div className="flex items-center justify-center p-4 gap-2">
+                  <FileText className="w-8 h-8 text-blue-500" />
+                  <span className="text-xs truncate">{capturedImage}</span>
                 </div>
               )}
               <button
@@ -908,15 +978,10 @@ console.log('مصالح:', materials);
               </button>
             </div>
           )}
-
-          {/* توضیح راهنما */}
-          <p className="text-[10px] text-muted-foreground text-center">
-            می‌توانید از بارنامه عکس بگیرید یا فایل PDF/تصویر آپلود کنید
-          </p>
         </div>
       </div>
       
-      {/* یادداشت اختیاری */}
+      {/* یادداشت کلی */}
       <div>
         <Label className="text-xs font-semibold">یادداشت (اختیاری)</Label>
         <Textarea
@@ -927,9 +992,12 @@ console.log('مصالح:', materials);
           onChange={(e) => setNotes(e.target.value)}
         />
       </div>
-      
+    </div>
+    
+    <div className="flex-shrink-0 pt-4 border-t mt-2">
       <Button
         onClick={handleConfirmSubmit}
+        disabled={submitting}
         className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl py-5 text-base font-bold"
       >
         <CheckCircle2 className="w-5 h-5 ml-2" />

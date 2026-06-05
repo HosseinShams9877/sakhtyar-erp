@@ -145,6 +145,7 @@ const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'vendors:view',
     'transactions:view',
     'warehouse:view',
+    'warehouse:create',
     'reports:view',
     'materials:view', 'tracking:view',
     // عدم دسترسی
@@ -369,7 +370,7 @@ export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
 };
 
 export const TRANSACTION_TYPE_COLORS: Record<string, string> = {
-  PURCHASE: 'bg-green-100 text-green-800',
+  PURCHASE: 'bg-green-100 text-green-800 ',
   DELIVERY: 'bg-blue-100 text-blue-800',
   RETURN: 'bg-red-100 text-red-800',
   ADJUSTMENT: 'bg-yellow-100 text-yellow-800',

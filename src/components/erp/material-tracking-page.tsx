@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useProject } from '@/components/project-context';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -17,13 +19,14 @@ import {
 import {
   Search, Package, Truck, Warehouse, TrendingDown, ArrowRight,
   ShoppingCart, RotateCcw, Filter, MapPin, Building2,
-  ChevronDown, ChevronUp, AlertTriangle,
+  ChevronDown, ChevronUp, AlertTriangle, Plus,
 } from 'lucide-react';
 import {
   toPersianDigits, formatNumber, formatCurrency, formatDate,
   UNIT_LABELS, TRANSACTION_TYPE_LABELS, TRANSACTION_TYPE_COLORS,
 } from '@/lib/rbac';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // ─── Types ───
 
@@ -120,6 +123,27 @@ export default function MaterialTrackingPage() {
   const [vendorFilter, setVendorFilter] = useState('');
   const [detailItem, setDetailItem] = useState<TrackingItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const { activeProject } = useProject();
+  const selectedProjectId = activeProject?.id || '';
+  // اصلاح موجودی
+const [addDialogOpen, setAddDialogOpen] = useState(false);
+const [submitting, setSubmitting] = useState(false);
+const [materials, setMaterials] = useState<any[]>([]);
+const [form, setForm] = useState({ materialId: '', quantity: '' });
+
+useEffect(() => {
+  async function loadMaterials() {
+    if (!selectedProjectId) return;
+    try {
+      const res = await fetch(`/api/materials?projectId=${selectedProjectId}`);
+      const data = await res.json();
+      setMaterials(data.materials || []);
+    } catch {
+      // silent
+    }
+  }
+  loadMaterials();
+}, [selectedProjectId]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -142,6 +166,40 @@ export default function MaterialTrackingPage() {
       setLoading(false);
     }
   }, [projectFilter, materialFilter, vendorFilter]);
+
+  const handleAddStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProjectId || !form.materialId || !form.quantity) {
+      toast.error('لطفاً پروژه، مصالح و مقدار را وارد کنید');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/warehouse', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: selectedProjectId,
+          materialId: form.materialId,
+          quantity: parseFloat(form.quantity),
+          description: `تنظیم موجودی به ${form.quantity}`,
+        }),
+      });
+      if (res.ok) {
+        toast.success(`موجودی با موفقیت به ${form.quantity} تغییر یافت`);
+        setForm({ materialId: '', quantity: '' });
+        setAddDialogOpen(false);
+        loadData(); // reload داده‌ها
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'خطا در ثبت موجودی');
+      }
+    } catch {
+      toast.error('خطا در ثبت موجودی');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   useEffect(() => { loadData(); }, [loadData]);
 

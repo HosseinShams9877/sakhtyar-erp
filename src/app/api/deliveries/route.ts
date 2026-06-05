@@ -90,27 +90,37 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { deliveryId, confirmedBy, image, notes } = body;
+    const { deliveryId, confirmedBy, image, notes, items: bodyItems } = body;
 
     // پیدا کردن فاکتور با آیتم‌ها
     const purchase = await db.purchase.findUnique({
       where: { id: deliveryId },
-      include: { 
-        items: true,
-        project: { select: { id: true } }
+      select: {
+        id: true,
+        projectId: true,
+        supplierId: true,
+        status: true,
+        invoiceNumber: true,
+        supplier: {
+          select: { companyName: true }
+        },
+        items: {
+          select: {
+            id: true,
+            materialId: true,
+            materialName: true,
+            quantity: true,
+            unitPrice: true,
+            totalPrice: true,
+            unit: true,
+          }
+        }
       }
     });
 
     if (!purchase) {
       return NextResponse.json({ error: 'خرید یافت نشد' }, { status: 404 });
     }
-    console.log('🔍 purchase.projectId:', purchase.projectId);
-    console.log('🔍 purchase.items:', purchase.items.map(i => ({
-      id: i.id,
-      materialId: i.materialId,
-      materialName: i.materialName,
-      quantity: i.quantity,
-    })));
 
     if (purchase.status !== 'paid') {
       return NextResponse.json(
@@ -128,6 +138,9 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
+
+    // ✅ لیست مغایرت‌ها برای نوتیفیکیشن (فقط برای اطلاع، بدون تغییر در موجودی)
+    const discrepancies: { materialName: string; quantity: number; actualQuantity: number; note?: string }[] = [];
 
     const result = await db.$transaction(async (tx) => {
       // 1. ثبت تحویل
@@ -147,18 +160,28 @@ export async function POST(req: NextRequest) {
         data: { status: 'delivered' },
       });
 
-      // 3. ✅ به‌روزرسانی موجودی مصالح
+      // 3. به‌روزرسانی موجودی مصالح (با مقدار فاکتور، نه مقدار مغایرت)
       for (const item of purchase.items) {
-        console.log('🔄 Processing item:', {
-          id: item.id,
-          materialId: item.materialId,
-          materialName: item.materialName,
-          quantity: item.quantity,
-        });
+        // ✅ پیدا کردن آیتم متناظر از body برای بررسی مغایرت (فقط برای نوتیفیکیشن)
+        const bodyItem = bodyItems?.find((bi: any) => 
+          bi.materialId === item.materialId || bi.materialName === item.materialName
+        );
+        
+        const actualQuantity = bodyItem?.actualQuantity ?? item.quantity;
+        const discrepancyNote = bodyItem?.discrepancy ?? null;
+        
+        // ✅ اگر مغایرت وجود داشت، ثبت کن برای نوتیفیکیشن (بدون تغییر در منطق اصلی)
+        if (actualQuantity !== item.quantity) {
+          discrepancies.push({
+            materialName: item.materialName,
+            quantity: item.quantity,
+            actualQuantity: actualQuantity,
+            note: discrepancyNote || undefined,
+          });
+        }
         
         let materialId = item.materialId;
         
-        // ✅ اگر materialId null بود، سعی کن با materialName پیدا کنی
         if (!materialId) {
           const materialByName = await tx.material.findFirst({
             where: {
@@ -168,9 +191,6 @@ export async function POST(req: NextRequest) {
           });
           if (materialByName) {
             materialId = materialByName.id;
-            console.log(`✅ Found material by name: ${item.materialName} -> ${materialId}`);
-          } else {
-            console.warn(`❌ Material not found by name: ${item.materialName}`);
           }
         }
         
@@ -180,19 +200,20 @@ export async function POST(req: NextRequest) {
           });
 
           if (material) {
-            const updated = await tx.material.update({
+            // ✅ آپدیت موجودی با مقدار فاکتور (نه مقدار واقعی)
+            await tx.material.update({
               where: { id: material.id },
-              data: { stock: { increment: item.quantity } },
+              data: { stock: { increment: item.quantity } },  // ← مقدار فاکتور
             });
-            console.log(`✅ Stock updated for ${material.name}: ${updated.stock}`);
 
-            // ثبت تراکنش انبار
+            // ثبت تراکنش انبار با مقدار فاکتور
             await tx.transaction.create({
               data: {
                 type: 'DELIVERY',
                 materialId: material.id,
                 projectId: purchase.projectId,
-                quantity: item.quantity,
+                supplierId: purchase.supplierId, 
+                quantity: item.quantity,  // ← مقدار فاکتور
                 unitPrice: item.unitPrice,
                 totalPrice: item.totalPrice,
                 purchaseId: deliveryId,
@@ -201,21 +222,52 @@ export async function POST(req: NextRequest) {
                 userId: auth.userId,
               },
             });
-          } else {
-            console.warn(`⚠️ Material not found for id: ${materialId}`);
           }
-        } else {
-          console.warn(`⚠️ Cannot find material for: ${item.materialName}`);
         }
       }
 
       return delivery;
     });
 
+    // ✅ 4. ارسال نوتیفیکیشن در صورت وجود مغایرت (فقط اطلاع‌رسانی)
+    if (discrepancies.length > 0) {
+      // پیدا کردن مدیر پروژه
+      const projectManager = await db.projectMember.findFirst({
+        where: {
+          projectId: purchase.projectId,
+          role: {
+            name: 'PROJECT_MANAGER'
+          }
+        },
+        include: {
+          user: true
+        }
+      });
+
+      if (projectManager) {
+        const discrepancyList = discrepancies.map(d => 
+          `${d.materialName}: فاکتور ${d.quantity} - تحویل ${d.actualQuantity}${d.note ? ` (${d.note})` : ''}`
+        ).join('، ');
+        
+        await db.notification.create({
+          data: {
+            userId: projectManager.userId,
+            title: '⚠️ مغایرت در تحویل کالا',
+            message: `فاکتور ${purchase.invoiceNumber} از ${purchase.supplier?.companyName} دارای مغایرت است. موارد: ${discrepancyList}`,
+            type: 'warning',
+            link: `/invoices/${deliveryId}`,
+          },
+        });
+        
+        console.log('✅ نوتیفیکیشن مغایرت برای مدیر پروژه ارسال شد');
+      }
+    }
+
     return NextResponse.json({ 
       success: true, 
       message: 'تحویل با موفقیت ثبت شد و موجودی انبار به‌روز شد',
-      delivery: result 
+      delivery: result,
+      discrepancies: discrepancies.length > 0 ? discrepancies : undefined
     });
 
   } catch (error: unknown) {

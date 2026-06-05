@@ -74,6 +74,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         if (res.ok) {
           const data = await res.json();
           const projectList: ProjectInfo[] = data.projects || [];
+          console.log('📋 Projects from API:', projectList.map(p => ({ id: p.id, name: p.name })));
           setProjects(projectList);
 
           // بازیابی پروژه فعال از کوکی
@@ -106,6 +107,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (activeProj) {
+            console.log('✅ Active project set to:', activeProj.name);
             setActiveProjectState(activeProj);
             // ذخیره در کوکی برای middleware
             document.cookie = `activeProjectId=${activeProj.id}; path=/; max-age=${60 * 60 * 24 * 30}`;

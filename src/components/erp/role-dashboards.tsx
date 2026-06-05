@@ -28,7 +28,7 @@ import {
   ArrowDownLeft, ArrowUpRight, PackageCheck,
   PackageX, ClipboardCheck, BarChart3, FileCheck2,
   TrendingUp, Users, Package, Timer, Shield, Settings,
-  Camera, X, ClipboardList, ChevronsUpDown, Minus
+  Camera, X, ClipboardList, ChevronsUpDown, Minus ,Loader2 
 } from 'lucide-react';
 import {
   formatNumber, formatCurrency, formatCurrencyShort,
@@ -881,14 +881,84 @@ interface Material {
 }
 
 export function ProjectManagerDashboard() {
+  // ✅ 1. همه هوک‌ها اینجا باشند
   const { data, loading } = useDashboardData();
 
+  const [shortageRequests, setShortageRequests] = useState<any[]>([]);
+  const [loadingShortages, setLoadingShortages] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [paidNotDelivered, setPaidNotDelivered] = useState<any[]>([]);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(false);
+
+  // گرفتن درخواست‌های کسری
+  const fetchShortageRequests = useCallback(async () => {
+    setLoadingShortages(true);
+    try {
+      const res = await fetch('/api/shortage-requests?status=pending');
+      const result = await res.json();
+      if (result.success) {
+        setShortageRequests(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching shortage requests:', error);
+    } finally {
+      setLoadingShortages(false);
+    }
+  }, []);
+
+  const fetchPaidNotDelivered = useCallback(async () => {
+    setLoadingDeliveries(true);
+    try {
+      const res = await fetch('/api/deliveries?pending=true');
+      const data = await res.json();
+      setPaidNotDelivered(data.deliveries || []);
+    } catch (error) {
+      console.error('Error fetching pending deliveries:', error);
+    } finally {
+      setLoadingDeliveries(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPaidNotDelivered();
+  }, [fetchPaidNotDelivered]);
+  // تابع تایید درخواست کسری
+  const handleApproveShortage = useCallback(async (requestId: string) => {
+    setApprovingId(requestId);
+    try {
+      const res = await fetch('/api/shortage-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: requestId,
+          status: 'approved',
+        }),
+      });
+      
+      const result = await res.json();
+      if (result.success) {
+        toast.success('درخواست کسری تایید شد');
+        fetchShortageRequests();
+      } else {
+        toast.error(result.error || 'خطا در تایید');
+      }
+    } catch (error) {
+      toast.error('خطا در ارتباط با سرور');
+    } finally {
+      setApprovingId(null);
+    }
+  }, [fetchShortageRequests]);
+
+  useEffect(() => {
+    fetchShortageRequests();
+  }, [fetchShortageRequests]);
+
+  // ✅ 2. بعد از همه هوک‌ها، شرط‌های return بیایند
   if (loading) return <DashboardSkeleton cards={3} />;
   if (!data) return <ErrorState />;
 
-  const { debtSummary, alertSummary, urgentPurchases: _urgentPurchases, debtorProjects, stats } = data;
+  const { debtSummary, alertSummary, urgentPurchases: _urgentPurchases, debtorProjects, stats, recentPurchases } = data;
   const urgentPurchases = safeUrgentPurchases(_urgentPurchases);
-
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* هدر */}
@@ -1068,46 +1138,118 @@ export function ProjectManagerDashboard() {
           </CardContent>
         </Card>
 
-        {/* تحویل‌های در انتظار تایید */}
-        <Card className="border-0 animate-in-up overflow-hidden neu-card">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <PackageCheck className="w-4 h-4 text-emerald-500" />
-              <CardTitle className="text-sm font-bold">تحویل‌های در انتظار تایید</CardTitle>
+        {/* درخواست‌های کسری مصالح */}
+<Card className="border-0 animate-in-up overflow-hidden neu-card">
+  <CardHeader className="pb-3">
+    <div className="flex items-center gap-2">
+      <AlertTriangle className="w-4 h-4 text-orange-500" />
+      <CardTitle className="text-sm font-bold">درخواست‌های کسری مصالح</CardTitle>
+    </div>
+    <CardDescription className="text-[11px]">درخواست‌های انبار برای تامین مجدد</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="space-y-2.5 max-h-72 overflow-y-auto scrollbar-thin">
+      {shortageRequests.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          درخواست کسری جدیدی وجود ندارد
+        </div>
+      ) : (
+        shortageRequests.map((request) => (
+          <div
+            key={request.id}
+            className="flex items-center justify-between gap-3 p-3 rounded-xl border border-orange-200/60 dark:border-orange-800/40 bg-orange-50/40 dark:bg-orange-950/20"
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-orange-500">
+                <Package className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate">{request.materialName}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[11px] text-muted-foreground">
+                    مقدار: {toPersianDigits(request.quantity)} {request.unit === 'KILOGRAM' ? 'کیلوگرم' : request.unit === 'TON' ? 'تن' : request.unit === 'SQUARE_METER' ? 'متر مربع' : 'عدد'}
+                  </span>
+                  <Badge className={`text-[9px] ${
+                    request.priority === 'high' ? 'bg-red-100 text-red-700' :
+                    request.priority === 'medium' ? 'bg-orange-100 text-orange-700' :
+                    'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {request.priority === 'high' ? 'فوری' : request.priority === 'medium' ? 'متوسط' : 'عادی'}
+                  </Badge>
+                </div>
+                {request.note && (
+                  <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                    یادداشت: {request.note}
+                  </p>
+                )}
+              </div>
             </div>
-            <CardDescription className="text-[11px]">تحویل‌هایی که باید تایید شویند</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2.5 max-h-72 overflow-y-auto scrollbar-thin">
-              {[...urgentPurchases.red, ...urgentPurchases.orange, ...urgentPurchases.yellow]
-                .filter(p => p.hasDelivery)
-                .slice(0, 5)
-                .map(purchase => (
-                  <div
-                    key={purchase.id}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/20"
-                  >
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-500">
-                      <Truck className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate">{purchase.supplier?.companyName || '—'}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] text-muted-foreground">{purchase.project?.name || '—'}</span>
-                        <Badge className="text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 px-1.5 py-0">
-                          تحویل ثبت‌شده
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              {[...urgentPurchases.red, ...urgentPurchases.orange, ...urgentPurchases.yellow]
-                .filter(p => p.hasDelivery).length === 0 && (
-                <div className="text-center py-8 text-muted-foreground text-sm">تحویلی در انتظار تایید نیست</div>
+            <Button
+              onClick={() => handleApproveShortage(request.id)}
+              disabled={approvingId === request.id}
+              size="sm"
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg px-4 py-1.5 text-xs font-bold shrink-0"
+            >
+              {approvingId === request.id ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                'تایید'
               )}
+            </Button>
+          </div>
+        ))
+      )}
+    </div>
+  </CardContent>
+</Card>
+
+   {/* تحویل‌های در انتظار تایید */}
+<Card className="border-0 animate-in-up overflow-hidden neu-card">
+  <CardHeader className="pb-3">
+    <div className="flex items-center gap-2">
+      <PackageCheck className="w-4 h-4 text-emerald-500" />
+      <CardTitle className="text-sm font-bold">تحویل‌های در انتظار تایید</CardTitle>
+    </div>
+    <CardDescription className="text-[11px]">
+      فاکتورهایی که پرداخت شده و منتظر تحویل هستند
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="space-y-2.5 max-h-72 overflow-y-auto scrollbar-thin">
+      {loadingDeliveries ? (
+        <div className="text-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
+        </div>
+      ) : paidNotDelivered.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          فاکتور پرداخت شده‌ای در انتظار تحویل نیست
+        </div>
+      ) : (
+        paidNotDelivered.map((delivery) => (
+          <div
+            key={delivery.id}
+            className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/20"
+          >
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-500">
+              <Truck className="w-4 h-4 text-white" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate">{delivery.supplierName || '—'}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[11px] text-muted-foreground">
+                  فاکتور شماره: {toPersianDigits(delivery.invoiceNumber)}
+                </span>
+                <Badge className="text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 px-1.5 py-0">
+                  پرداخت شده
+                </Badge>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </CardContent>
+</Card>
       </div>
     </div>
   );
@@ -1122,6 +1264,7 @@ export function ProjectManagerDashboard() {
    export function PurchaserDashboard() {
     const { data, loading } = useDashboardData();
     const [supplierSearch, setSupplierSearch] = useState('');
+    const [currentShortageRequestId, setCurrentShortageRequestId] = useState<string | null>(null);
     const [showQuickForm, setShowQuickForm] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
     const [items, setItems] = useState<InvoiceItemRow[]>([createEmptyItemRow()]);
@@ -1131,6 +1274,8 @@ export function ProjectManagerDashboard() {
     const [deliveryCount, setDeliveryCount] = useState(0);
     const [correctiveCount, setCorrectiveCount] = useState(0);
     const [newSuppliersCount, setNewSuppliersCount] = useState(0);
+    const [approvedShortages, setApprovedShortages] = useState<any[]>([]);
+    const [loadingApproved, setLoadingApproved] = useState(false)
     const { activeProject, projects, loading: projectLoading } = useProject(); 
     const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
     const [quickFormData, setQuickFormData] = useState({
@@ -1140,21 +1285,59 @@ export function ProjectManagerDashboard() {
       projectId: '',
       vendorId: '',
     });
+    const loadMaterialsForProject = useCallback(async (projectId: string) => {
+      if (!projectId) {
+        setMaterials([]);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/materials?projectId=${projectId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMaterials(data.materials || []);
+        }
+      } catch (error) {
+        console.error('Error loading materials:', error);
+      }
+    }, []);
   
-// گرفتن تعداد واقعی فاکتورهای در انتظار (pending)
-useEffect(() => {
-  // اگر پروژه هنوز در حال بارگذاری است یا وجود ندارد، صبر کن
-  if (!activeProject?.id && projects.length === 0) {
-    return; // منتظر بمان تا پروژه لود شود
-  }
+    const filteredSuppliers = useCallback(() => {
+      if (!data?.creditorSuppliers) return [];
+      const q = supplierSearch.trim();
+      if (!q) return data.creditorSuppliers.slice(0, 5);
+      return data.creditorSuppliers
+        .filter(s => s.companyName.includes(q) || s.contactName.includes(q))
+        .slice(0, 5);
+    }, [data, supplierSearch]);
   
-  const projectId = activeProject?.id || '';
-  const url = `/api/invoices?status=pending${projectId ? `&projectId=${projectId}` : ''}&pageSize=1`;
-  fetch(url)
-    .then(res => res.json())
-    .then(data => setPendingCount(data.total || 0))
-    .catch(() => setPendingCount(0));
-}, [activeProject?.id, projects.length]);
+    const fetchApprovedShortages = useCallback(async () => {
+      setLoadingApproved(true);
+      try {
+        const res = await fetch('/api/shortage-requests?status=approved');
+        const result = await res.json();
+        if (result.success) {
+          setApprovedShortages(result.data || []);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoadingApproved(false);
+      }
+    }, []);
+  
+    // ========== همه useEffectها ==========
+    // گرفتن تعداد واقعی فاکتورهای در انتظار (pending)
+    useEffect(() => {
+      if (!activeProject?.id && projects.length === 0) {
+        return;
+      }
+      const projectId = activeProject?.id || '';
+      const url = `/api/invoices?status=pending${projectId ? `&projectId=${projectId}` : ''}&pageSize=1`;
+      fetch(url)
+        .then(res => res.json())
+        .then(data => setPendingCount(data.total || 0))
+        .catch(() => setPendingCount(0));
+    }, [activeProject?.id, projects.length]);
   
     // گرفتن تعداد رسیدهای تحویل
     useEffect(() => {
@@ -1176,6 +1359,7 @@ useEffect(() => {
         .then(data => setCorrectiveCount(data.total || 0))
         .catch(() => setCorrectiveCount(0));
     }, [activeProject?.id]);
+  
     // گرفتن تعداد تامین‌کنندگان جدید (فعال)
     useEffect(() => {
       fetch('/api/vendors?isActive=true')
@@ -1186,7 +1370,7 @@ useEffect(() => {
         })
         .catch(() => setNewSuppliersCount(0));
     }, []);
-
+  
     useEffect(() => {
       if (quickFormData.projectId) {
         fetch(`/api/vendors?projectId=${quickFormData.projectId}`)
@@ -1202,24 +1386,8 @@ useEffect(() => {
       } else {
         setFilteredVendors(data?.creditorSuppliers || []);
       }
-    }, [quickFormData.projectId, data?.creditorSuppliers]);  
-
-    const loadMaterialsForProject = useCallback(async (projectId: string) => {
-      if (!projectId) {
-        setMaterials([]);
-        return;
-      }
-      try {
-        const res = await fetch(`/api/materials?projectId=${projectId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setMaterials(data.materials || []);
-        }
-      } catch (error) {
-        console.error('Error loading materials:', error);
-      }
-    }, []);
-    
+    }, [quickFormData.projectId, data?.creditorSuppliers]);
+  
     useEffect(() => {
       if (quickFormData.projectId) {
         loadMaterialsForProject(quickFormData.projectId);
@@ -1227,11 +1395,16 @@ useEffect(() => {
         setMaterials([]);
       }
     }, [quickFormData.projectId, loadMaterialsForProject]);
-
+  
+    useEffect(() => {
+      fetchApprovedShortages();
+    }, [fetchApprovedShortages]);
+  
+    // ========== توابع معمولی (غیر Hook) ==========
     const addItemRow = () => {
       setItems((prev) => [...prev, createEmptyItemRow()]);
     };
-    
+  
     const removeItemRow = (key: string) => {
       if (items.length <= 1) {
         toast.error('حداقل یک آیتم فاکتور الزامی است');
@@ -1239,7 +1412,7 @@ useEffect(() => {
       }
       setItems((prev) => prev.filter((r) => r._key !== key));
     };
-    
+  
     const updateItem = (key: string, field: keyof InvoiceItemRow, value: string | number | null) => {
       setItems((prev) =>
         prev.map((row) => {
@@ -1252,7 +1425,7 @@ useEffect(() => {
         })
       );
     };
-    
+  
     const selectMaterial = (key: string, material: Material) => {
       setItems((prev) =>
         prev.map((row) => {
@@ -1267,7 +1440,7 @@ useEffect(() => {
       );
       setOpenPopover((prev) => ({ ...prev, [key]: false }));
     };
-    
+  
     const itemsTotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
   
     const getLinkWithProject = (baseLink: string) => {
@@ -1277,25 +1450,6 @@ useEffect(() => {
       }
       return baseLink;
     };
-
-    const filteredSuppliers = useCallback(() => {
-      if (!data?.creditorSuppliers) return [];
-      const q = supplierSearch.trim();
-      if (!q) return data.creditorSuppliers.slice(0, 5);
-      return data.creditorSuppliers
-        .filter(s => s.companyName.includes(q) || s.contactName.includes(q))
-        .slice(0, 5);
-    }, [data, supplierSearch]);
-  
-    if (loading) return <DashboardSkeleton cards={3} />;
-    if (!data) return <ErrorState />;
-  
-    const { debtSummary, alertSummary, stats, urgentPurchases: _urgentPurchases, creditorSuppliers, recentPurchases } = data;
-    const urgentPurchases = safeUrgentPurchases(_urgentPurchases);
-  
-    const myInvoicesCount = stats.totalPurchases;
-    const myTotalAmount = debtSummary.totalPurchaseAmount;
-    const myPendingCount = alertSummary.total;
   
     const handleQuickSubmit = async () => {
       if (!quickFormData.invoiceNumber || !quickFormData.projectId || !quickFormData.vendorId) {
@@ -1306,7 +1460,7 @@ useEffect(() => {
         toast.error('حداقل یک آیتم فاکتور با نام کالا وارد کنید');
         return;
       }
-    
+  
       setSubmitting(true);
       try {
         const miladiDate = fromShamsi(quickFormData.dueDate);
@@ -1320,7 +1474,7 @@ useEffect(() => {
             unitPrice: row.unitPrice,
             totalPrice: row.totalPrice,
           }));
-    
+  
         const response = await fetch('/api/invoices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1337,30 +1491,58 @@ useEffect(() => {
             items: itemsData,
           }),
         });
-    
+  
         if (response.ok) {
           toast.success('فاکتور با موفقیت ثبت شد');
+  
+          if (currentShortageRequestId) {
+            await fetch('/api/shortage-requests', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: currentShortageRequestId,
+                status: 'fulfilled',
+              }),
+            });
+            setCurrentShortageRequestId(null);
+            await fetchApprovedShortages();
+          }
+  
           setShowQuickForm(false);
-          setQuickFormData({ 
-            invoiceNumber: '',  
-            amount: '', 
-            dueDate: toShamsi(new Date()), 
-            projectId: '', 
-            vendorId: '' 
+          setQuickFormData({
+            invoiceNumber: '',
+            amount: '',
+            dueDate: toShamsi(new Date()),
+            projectId: '',
+            vendorId: ''
           });
           setItems([createEmptyItemRow()]);
+  
           setTimeout(() => window.location.reload(), 1000);
+  
         } else {
           const error = await response.json();
           toast.error(error.message || 'خطا در ثبت فاکتور');
         }
       } catch (error) {
+        console.error('Error:', error);
         toast.error('خطا در ارتباط با سرور');
       } finally {
         setSubmitting(false);
       }
     };
   
+    // ========== شرط‌های return در انتها (بعد از همه Hookها) ==========
+    if (loading) return <DashboardSkeleton cards={3} />;
+    if (!data) return <ErrorState />;
+  
+    // ========== متغیرهای مشتق شده از data ==========
+    const { debtSummary, alertSummary, stats, urgentPurchases: _urgentPurchases, creditorSuppliers, recentPurchases } = data;
+    const urgentPurchases = safeUrgentPurchases(_urgentPurchases);
+  
+    const myInvoicesCount = stats.totalPurchases;
+    const myTotalAmount = debtSummary.totalPurchaseAmount;
+    const myPendingCount = alertSummary.total;
     return (
       <div className="w-full flex flex-col items-center">
         <div className="w-full max-w-[1400px] px-4 sm:px-6 space-y-5 pb-20">
@@ -1758,6 +1940,85 @@ useEffect(() => {
               </CardContent>
             </Card>
           </div>
+
+          {/* درخواست‌های کسری تایید شده */}
+<Card className="border-0 shadow-soft dark:bg-gray-900/80 rounded-2xl">
+  <CardHeader className="pb-3">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+        <CardTitle className="text-sm font-bold text-gray-800 dark:text-gray-200">
+          درخواست‌های کسری تایید شده
+        </CardTitle>
+      </div>
+      {approvedShortages.length > 0 && (
+        <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
+          {toPersianDigits(approvedShortages.length)}
+        </Badge>
+      )}
+    </div>
+    <CardDescription className="text-[11px]">
+      درخواست‌هایی که مدیر پروژه تایید کرده، پس از ثبت فاکتور حذف می‌شوند
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="space-y-2.5 max-h-72 overflow-y-auto">
+      {loadingApproved ? (
+        <div className="text-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
+        </div>
+      ) : approvedShortages.length === 0 ? (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+          درخواست تایید شده‌ای وجود ندارد
+        </div>
+      ) : (
+        approvedShortages.map((request) => (
+          <div
+            key={request.id}
+            className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40"
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-500">
+                <Package className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate text-gray-800 dark:text-gray-200">
+                  {request.materialName}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[11px] text-muted-foreground">
+                    مقدار: {toPersianDigits(request.quantity)} {request.unit === 'KILOGRAM' ? 'کیلوگرم' : 'عدد'}
+                  </span>
+                </div>
+                {request.project?.name && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    پروژه: {request.project.name}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button
+              onClick={async () => {
+                // پر کردن فرم با اطلاعات پروژه
+                setQuickFormData({
+                  ...quickFormData,
+                  projectId: request.projectId || '',
+                });
+                setCurrentShortageRequestId(request.id);
+                setShowQuickForm(true);
+  
+              }}
+              size="sm"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg px-3 py-1.5 text-xs font-bold shrink-0"
+            >
+              ثبت فاکتور
+            </Button>
+          </div>
+        ))
+      )}
+    </div>
+  </CardContent>
+</Card>
   
           {/* سررسیدهای نزدیک */}
           <Card className="border-0 shadow-soft dark:bg-gray-900/80 rounded-2xl">

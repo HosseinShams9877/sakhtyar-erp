@@ -130,12 +130,13 @@ export default function DueDates() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
-  const { activeProject } = useProject();
+  
 
   // Filters
   const [search, setSearch] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('all');
-  const [projectFilter, setProjectFilter] = useState('all');
+  const { activeProject } = useProject();
+  const selectedProjectId = activeProject?.id || '';
   const [vendorFilter, setVendorFilter] = useState('all');
 
   // Payment dialog
@@ -156,45 +157,45 @@ export default function DueDates() {
   // Sort
   const [sortBy, setSortBy] = useState<'urgency' | 'amount' | 'dueDate'>('urgency');
 
-  // ─── Data Loading ───
 
+  // ─── Data Loading ───
   const loadData = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       
-      // اضافه کردن projectId از پروژه فعال (از هدر) - اولویت با activeProject
-      const activeProjectId = activeProject?.id || '';
-      if (activeProjectId) {
-        params.set('projectId', activeProjectId);
+      // فقط از selectedProjectId استفاده کن (مثل WarehousePage)
+      if (selectedProjectId) {
+        params.set('projectId', selectedProjectId);
+        console.log('🔍 Sending projectId to API:', selectedProjectId); 
       }
       
-      // فیلترهای دستی کاربر (می‌تواند activeProjectId را override کند)
+      // فیلترهای دیگر
       if (urgencyFilter && urgencyFilter !== 'all') params.set('urgency', urgencyFilter);
-      if (projectFilter && projectFilter !== 'all') params.set('projectId', projectFilter);
       if (vendorFilter && vendorFilter !== 'all') params.set('supplierId', vendorFilter);
       if (search) params.set('search', search);
-  
+    
       const [duesRes, prjRes, vndRes] = await Promise.all([
         fetch(`/api/dues?${params.toString()}`),
         fetch('/api/projects'),
         fetch('/api/vendors'),
       ]);
-  
+    
       const duesData = await duesRes.json();
       const prjData = await prjRes.json();
       const vndData = await vndRes.json();
-  
+    
       setDues(Array.isArray(duesData.dues) ? duesData.dues : []);
       setSummary(duesData.summary || null);
       setProjects(Array.isArray(prjData) ? prjData : []);
       setVendors(Array.isArray(vndData) ? vndData : []);
-    } catch {
+    } catch (error) {
+      console.error('Error loading dues:', error);
       setDues([]);
       setSummary(null);
     } finally {
       setLoading(false);
     }
-  }, [urgencyFilter, projectFilter, vendorFilter, search, activeProject?.id]);
+  }, [urgencyFilter, vendorFilter, search, selectedProjectId]); 
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -388,19 +389,6 @@ export default function DueDates() {
                 <SelectItem value="urgent">فوری (۳ روز)</SelectItem>
                 <SelectItem value="soon">نزدیک (۷ روز)</SelectItem>
                 <SelectItem value="normal">عادی</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* پروژه */}
-            <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger className="h-8 text-xs rounded-lg w-[130px]">
-                <SelectValue placeholder="پروژه" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">همه پروژه‌ها</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
               </SelectContent>
             </Select>
 

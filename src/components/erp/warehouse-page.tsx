@@ -178,20 +178,46 @@ export default function WarehousePage() {
 
   // ─── Load Materials ───
 
-  useEffect(() => {
-    async function loadMaterials() {
-      try {
-        const res = await fetch('/api/materials');
-        const data = await res.json();
-        setMaterials(data.materials || []);
-      } catch {
-        // silent
-      }
+  // ─── Load Materials ───
+useEffect(() => {
+  async function loadMaterials() {
+    if (!selectedProjectId) {
+      setMaterials([]);
+      return;
     }
-    loadMaterials();
-  }, []);
+    try {
+      const res = await fetch(`/api/materials?projectId=${selectedProjectId}`);
+      const data = await res.json();
+      setMaterials(data.materials || []);
+    } catch {
+      // silent
+    }
+  }
+  loadMaterials();
+}, [selectedProjectId]); // ✅ اضافه کردن selectedProjectId به dependency
 
+const loadTransactions = useCallback(async () => {
+  if (!selectedProjectId) {
+    setTransactions([]);
+    return;
+  }
+  setLoadingTransactions(true);
+  try {
+    const res = await fetch(`/api/transactions?projectId=${selectedProjectId}`);
+    if (res.ok) {
+      const data = await res.json();
+      setTransactions(Array.isArray(data) ? data : []);
+    } else {
+      setTransactions([]);
+    }
+  } catch {
+    setTransactions([]);
+  } finally {
+    setLoadingTransactions(false);
+  }
+}, [selectedProjectId]);
   // ─── Load Warehouse Stock ───
+ // ─── Load Warehouse Stock ───
 const loadStocks = useCallback(async () => {
   if (!selectedProjectId) {
     setStocks([]);
@@ -199,14 +225,11 @@ const loadStocks = useCallback(async () => {
   }
   setLoadingStocks(true);
   try {
-    // ✅ تغییر: استفاده از /api/materials به جای /api/warehouse
     const res = await fetch(`/api/materials?projectId=${selectedProjectId}`);
-    
     if (res.ok) {
       const data = await res.json();
       const materials = data.materials || [];
       
-      // تبدیل مواد به فرمت WarehouseStockItem
       const stocksData = materials.map((material: any) => ({
         id: material.id,
         projectId: selectedProjectId,
@@ -215,7 +238,7 @@ const loadStocks = useCallback(async () => {
         materialName: material.name,
         unit: material.unit,
         minStock: material.minStock,
-        reservedQuantity: 0,  // اگر سیستم رزرو نداری، 0 بگذار
+        reservedQuantity: 0,
         availableQuantity: material.stock || 0,
         createdAt: material.createdAt,
         updatedAt: material.updatedAt,
@@ -234,29 +257,8 @@ const loadStocks = useCallback(async () => {
     setLoadingStocks(false);
   }
 }, [selectedProjectId, activeProject?.name]);
-
+ 
   // ─── Load Recent Transactions ───
-
-  const loadTransactions = useCallback(async () => {
-    if (!selectedProjectId) {
-      setTransactions([]);
-      return;
-    }
-    setLoadingTransactions(true);
-    try {
-      const res = await fetch(`/api/transactions?projectId=${selectedProjectId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setTransactions(Array.isArray(data) ? data : []);
-      } else {
-        setTransactions([]);
-      }
-    } catch {
-      setTransactions([]);
-    } finally {
-      setLoadingTransactions(false);
-    }
-  }, [selectedProjectId]);
 
   useEffect(() => {
     loadStocks();
@@ -307,20 +309,21 @@ const loadStocks = useCallback(async () => {
     setSubmitting(true);
     try {
       const res = await fetch('/api/warehouse', {
-        method: 'POST',
+        method: 'PUT', // ← این را از POST به PUT تغییر بده
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: selectedProjectId,
           materialId: form.materialId,
-          quantity: parseFloat(form.quantity),
-          reservedQuantity: parseFloat(form.reservedQuantity) || 0,
+          quantity: parseFloat(form.quantity), // مقدار جدید (جایگزین)
+          description: `تنظیم موجودی به ${form.quantity}`,
         }),
       });
       if (res.ok) {
-        toast.success('موجودی با موفقیت اضافه شد');
+        toast.success(`موجودی با موفقیت به ${form.quantity} تغییر یافت`);
         setForm(emptyForm);
         setAddDialogOpen(false);
-        loadStocks();
+        loadStocks(); // reload موجودی جدید
+        loadTransactions(); // reload تراکنش‌ها
       } else {
         const err = await res.json();
         toast.error(err.error || 'خطا در ثبت موجودی');
@@ -331,7 +334,6 @@ const loadStocks = useCallback(async () => {
       setSubmitting(false);
     }
   };
-
   // ─── Confirm Delivery ───
 
   const openConfirmDialog = (txId: string) => {
@@ -398,7 +400,7 @@ const loadStocks = useCallback(async () => {
             onClick={() => setAddDialogOpen(true)}
           >
             <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">افزودن موجودی</span>
+            <span className="hidden sm:inline">اصلاح موجودی</span>
           </Button>
         </div>
       </div>
