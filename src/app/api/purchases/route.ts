@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
                   },
                 });
                 if (material) {
-                  materialId = material.id;
+                  materialId = material.id ?? null;
                 }
               }
               
@@ -287,7 +287,7 @@ export async function PUT(req: NextRequest) {
                     },
                   });
                   if (material) {
-                    materialId = material.id;
+                    materialId = material.id ?? null;
                   }
                 }
                 
