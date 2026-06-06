@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { formatCurrency } from '@/lib/rbac';
 
 function todayISO(): string {
   return new Date().toISOString().split('T')[0];
@@ -108,7 +109,6 @@ if (auth.role === 'PURCHASER') {
 
   return NextResponse.json({ notifications: allNotifications.slice(0, 50), unreadCount });
 }
-
 //مدیر پروژه
 if (auth.role === 'PROJECT_MANAGER') {
   // گرفتن projectId از هدر (از طریق query parameter)
@@ -141,13 +141,14 @@ if (auth.role === 'PROJECT_MANAGER') {
   });
   
   // شرط جستجو برای نوتیفیکیشن‌های ذخیره شده
-  const storedNotificationsWhere: any = {
-    OR: [
-      { userId: auth.userId },  // نوتیفیکیشن‌های مستقیم به این کاربر
-      { roleId: projectManagerRole?.id },  // نوتیفیکیشن‌های مربوط به نقش PROJECT_MANAGER (مثل مغایرت‌ها)
-    ]
-  };
-  
+const storedNotificationsWhere: any = {
+  roleId: projectManagerRole?.id
+};
+
+// اگر projectId خاصی انتخاب شده، فقط نوتیفیکیشن‌های همون پروژه
+if (projectId && projectId !== 'all') {
+  storedNotificationsWhere.projectId = projectId;
+}
   // اگر projectId خاصی انتخاب شده، فقط نوتیفیکیشن‌های همون پروژه
   if (projectId && projectId !== 'all') {
     storedNotificationsWhere.projectId = projectId;
@@ -173,7 +174,8 @@ if (auth.role === 'PROJECT_MANAGER') {
   });
   
   const liveNotifications: any[] = [];
-  
+
+  // 1. نوتیفیکیشن‌های سررسید فاکتورها
   for (const p of unpaidPurchases) {
     const dueDateStr = p.dueDate.toISOString().split('T')[0];
     const remaining = p.totalAmount - p.paidAmount;
@@ -218,6 +220,63 @@ if (auth.role === 'PROJECT_MANAGER') {
         projectId: p.projectId,
         projectName: p.project?.name,
       });
+    }
+  }
+
+  // 2. نوتیفیکیشن‌های بدهی پروژه (اگر بدهی از حد مشخصی بیشتر باشه)
+  for (const projectIdItem of targetProjectIds) {
+    console.log('🔍 Checking project:', projectIdItem);
+    // محاسبه بدهی کل پروژه
+    const projectPurchases = await db.purchase.findMany({
+      where: {
+        projectId: projectIdItem,
+        status: { not: 'paid' }
+      },
+      select: {
+        totalAmount: true,
+        paidAmount: true
+      }
+    });
+    
+    const totalDebt = projectPurchases.reduce((sum, p) => sum + (p.totalAmount - p.paidAmount), 0);
+    
+    // دریافت اطلاعات پروژه
+    const project = await db.project.findUnique({
+      where: { id: projectIdItem },
+      select: { name: true, budget: true }
+    });
+    
+    if (project && totalDebt > 0) {
+      const debtPercentage = (totalDebt / (project.budget || 1)) * 100;
+      console.log('📈 debtPercentage:', debtPercentage);
+      //مقدار بدهی بالاتر از 80 درصد
+      if (debtPercentage >= 80) {
+        liveNotifications.push({
+          id: `debt-critical-${projectIdItem}`,
+          title: '🔴 هشدار بدهی بحرانی',
+          message: `بدهی پروژه ${project.name} به ${debtPercentage.toFixed(0)}٪ از بودجه رسید (${formatCurrency(totalDebt)}).`,
+          type: 'error',
+          isRead: false,
+          link: `/projects/${projectIdItem}`,
+          createdAt: new Date().toISOString(),
+          projectId: projectIdItem,
+          projectName: project.name,
+        });
+      } 
+      // هشدار بدهی متوسط (بین 50 تا 80 درصد)
+      else if (debtPercentage >= 50) {
+        liveNotifications.push({
+          id: `debt-warning-${projectIdItem}`,
+          title: '🟡 افزایش بدهی',
+          message: `بدهی پروژه ${project.name} به ${debtPercentage.toFixed(0)}٪ از بودجه رسید (${formatCurrency(totalDebt)}).`,
+          type: 'warning',
+          isRead: false,
+          link: `/projects/${projectIdItem}`,
+          createdAt: new Date().toISOString(),
+          projectId: projectIdItem,
+          projectName: project.name,
+        });
+      }
     }
   }
   

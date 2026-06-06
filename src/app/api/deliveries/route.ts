@@ -226,6 +226,7 @@ export async function POST(req: NextRequest) {
     });
 
     // ارسال نوتیفیکیشن در صورت وجود مغایرت
+// ارسال نوتیفیکیشن در صورت وجود مغایرت
 if (discrepancies.length > 0) {
   const projectManager = await db.projectMember.findFirst({
     where: {
@@ -236,7 +237,7 @@ if (discrepancies.length > 0) {
     },
     include: {
       user: true,
-      role: true  // 👈 role رو هم بگیر
+      role: true
     }
   });
 
@@ -248,12 +249,40 @@ if (discrepancies.length > 0) {
     await db.notification.create({
       data: {
         userId: projectManager.userId,
-        roleId: projectManager.roleId,  // 👈 اضافه شد
+        roleId: projectManager.roleId,
         title: '⚠️ مغایرت در تحویل کالا',
         message: `فاکتور ${purchase.invoiceNumber} از ${purchase.supplier?.companyName} دارای مغایرت است. موارد: ${discrepancyList}`,
         type: 'warning',
         link: `/invoices/${deliveryId}`,
-        projectId: purchase.projectId,  // 👈 اضافه شد - این همون چیزیه که میخواستی
+        projectId: purchase.projectId,
+      },
+    });
+  }
+} else {
+  // ✅ اگر مغایرتی وجود نداشت، نوتیفیکیشن تحویل موفق بفرست
+  const projectManager = await db.projectMember.findFirst({
+    where: {
+      projectId: purchase.projectId,
+      role: {
+        name: 'PROJECT_MANAGER'
+      }
+    },
+    include: {
+      user: true,
+      role: true
+    }
+  });
+
+  if (projectManager) {
+    await db.notification.create({
+      data: {
+        userId: projectManager.userId,
+        roleId: projectManager.roleId,
+        title: '✅ تحویل کالا ثبت شد',
+        message: `فاکتور ${purchase.invoiceNumber} از ${purchase.supplier?.companyName} با موفقیت تحویل شد.`,
+        type: 'success',
+        link: `/invoices/${deliveryId}`,
+        projectId: purchase.projectId,
       },
     });
   }

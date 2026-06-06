@@ -139,6 +139,49 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // ✅ ارسال نوتیفیکیشن به مدیر پروژه (اگر پروژه مشخص شده باشد)
+    if (projectId) {
+      // پیدا کردن مدیر پروژه
+      const projectManager = await db.projectMember.findFirst({
+        where: {
+          projectId: projectId,
+          role: {
+            name: 'PROJECT_MANAGER'
+          }
+        },
+        include: {
+          user: true,
+          role: true
+        }
+      });
+
+      if (projectManager) {
+        // عنوان و نوع نوتیفیکیشن بر اساس اولویت
+        let title = '📦 درخواست کسری جدید';
+        let type = 'info';
+        
+        if (priority === 'high') {
+          title = '⚠️ درخواست کسری فوری';
+          type = 'error';
+        } else if (priority === 'medium') {
+          title = '📦 درخواست کسری';
+          type = 'warning';
+        }
+
+        await db.notification.create({
+          data: {
+            userId: projectManager.userId,
+            roleId: projectManager.roleId,
+            title: title,
+            message: `درخواست کسری ${materialName} به مقدار ${quantity} ${unit === 'KILOGRAM' ? 'کیلوگرم' : 'عدد'} توسط انباردار ثبت شد.`,
+            type: type,
+            link: `/materials`,
+            projectId: projectId,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: shortageRequest,

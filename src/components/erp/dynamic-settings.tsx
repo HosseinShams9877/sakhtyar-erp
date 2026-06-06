@@ -91,8 +91,11 @@ export default function DynamicSettings() {
       const res = await fetch('/api/settings');
       if (res.ok) {
         const data = await res.json();
+        console.log('🔍 Loaded settings:', data);
+        
         const raw: SettingItem[] = data.raw || [];
         setSettings(raw);
+        
         // Group by category
         const g: Record<string, SettingItem[]> = {};
         for (const item of raw) {
@@ -104,7 +107,8 @@ export default function DynamicSettings() {
           g[cat].sort((a, b) => a.group - b.group);
         }
         setGrouped(g);
-        // Initialize edit values
+        
+        // Initialize edit values from loaded data
         const vals: Record<string, string> = {};
         for (const item of raw) {
           vals[item.key] = item.value;
@@ -126,30 +130,61 @@ export default function DynamicSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Find changed values
       const changes: { key: string; value: string }[] = [];
       for (const item of settings) {
         if (editValues[item.key] !== undefined && editValues[item.key] !== item.value) {
           changes.push({ key: item.key, value: editValues[item.key] });
         }
       }
+      
       if (changes.length === 0) {
         toast.info('تغییری برای ذخیره وجود ندارد');
         setSaving(false);
         return;
       }
+      
       const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(changes),
       });
+      
       if (res.ok) {
+        // 🔥 مهم: ابتدا editValues رو با مقادیر جدید به‌روز کن
+        const newEditValues = { ...editValues };
+        for (const change of changes) {
+          newEditValues[change.key] = change.value;
+        }
+        setEditValues(newEditValues);
+        
+        // سپس settings رو به‌روز کن
+        const updatedSettings = settings.map(item => {
+          const change = changes.find(c => c.key === item.key);
+          if (change) {
+            return { ...item, value: change.value };
+          }
+          return item;
+        });
+        setSettings(updatedSettings);
+        
+        // گروه‌بندی مجدد
+        const g: Record<string, SettingItem[]> = {};
+        for (const item of updatedSettings) {
+          if (!g[item.category]) g[item.category] = [];
+          g[item.category].push(item);
+        }
+        for (const cat of Object.keys(g)) {
+          g[cat].sort((a, b) => a.group - b.group);
+        }
+        setGrouped(g);
+        
         toast.success(`${toPersianDigits(changes.length)} تنظیمات ذخیره شد`);
-        loadSettings();
       } else {
-        toast.error('خطا در ذخیره تنظیمات');
+        const data = await res.json();
+        toast.error(data.error || 'خطا در ذخیره تنظیمات');
       }
-    } catch {
+    } catch (error) {
+      console.error('🔍 Save error:', error);
       toast.error('خطا در ارتباط با سرور');
     } finally {
       setSaving(false);

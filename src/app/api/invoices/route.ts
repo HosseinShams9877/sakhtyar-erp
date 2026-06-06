@@ -205,8 +205,8 @@ export async function POST(req: NextRequest) {
     const {
       invoiceNumber, projectId, supplierId, purchaseDate, dueDate,
       totalAmount, paidAmount, description, invoiceImage, items,
-      paymentMethod, settlementDate, taxAmount,  // اینها رو درست استخراج کن
-      pdfUrl, waybillUrl, deliveryReceiptUrl,    // اینها رو درست استخراج کن
+      paymentMethod, settlementDate, taxAmount,
+      pdfUrl, waybillUrl, deliveryReceiptUrl,
     } = body;
 
     // اعتبارسنجی ورودی
@@ -239,14 +239,14 @@ export async function POST(req: NextRequest) {
     if (!supplier) {
       return NextResponse.json({ error: 'تأمین‌کننده یافت نشد' }, { status: 404 });
     }
-    
 
     // اعتبارسنجی اقلام
     const validItems = Array.isArray(items)
       ? items.filter((item: any) => item.materialName && item.quantity > 0 && item.unitPrice >= 0)
       : [];
 
-      console.log('🔍 [CREATE INVOICE] validItems before create:', JSON.stringify(validItems, null, 2));
+    console.log('🔍 [CREATE INVOICE] validItems before create:', JSON.stringify(validItems, null, 2));
+    
     // ایجاد فاکتور
     const purchase = await db.purchase.create({
       data: {
@@ -261,7 +261,6 @@ export async function POST(req: NextRequest) {
         description: description || null,
         invoiceImage: invoiceImage || null,
         createdById: auth.userId,
-        // استفاده از متغیرهای استخراج شده، نه body.xxx
         paymentMethod: paymentMethod || null,
         settlementDate: settlementDate ? new Date(settlementDate) : null,
         taxAmount: taxAmount || 0,
@@ -281,6 +280,34 @@ export async function POST(req: NextRequest) {
       },
       include: { supplier: true, project: true, items: true, payments: true, delivery: true },
     });
+
+    // ✅ ارسال نوتیفیکیشن به مدیر پروژه
+    const projectManager = await db.projectMember.findFirst({
+      where: {
+        projectId: projectId,
+        role: {
+          name: 'PROJECT_MANAGER'
+        }
+      },
+      include: {
+        user: true,
+        role: true
+      }
+    });
+
+    if (projectManager) {
+      await db.notification.create({
+        data: {
+          userId: projectManager.userId,
+          roleId: projectManager.roleId,
+          title: '📄 فاکتور جدید نیاز به تایید دارد',
+          message: `فاکتور شماره ${invoiceNumber} از ${supplier.companyName} ثبت شده و نیاز به تایید مدیر پروژه دارد.`,
+          type: 'warning',
+          link: `/invoices/${purchase.id}`,
+          projectId: projectId,
+        },
+      });
+    }
 
     return NextResponse.json(purchase, { status: 201 });
   } catch (error: unknown) {
