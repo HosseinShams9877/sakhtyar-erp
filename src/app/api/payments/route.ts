@@ -29,12 +29,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
 // POST /api/payments — Create payment and update purchase status
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { purchaseId, amount, paymentDate, note } = body;
+    const { purchaseId, amount, paymentDate, note, method, checkNumber, bankName, dueDate } = body;
 
     if (!purchaseId || amount === undefined) {
       return NextResponse.json(
@@ -51,8 +50,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check purchase exists
-    const purchase = await db.purchase.findUnique({ where: { id: purchaseId } });
+    // Check purchase exists with project and supplier info
+    const purchase = await db.purchase.findUnique({ 
+      where: { id: purchaseId },
+      include: {
+        project: { select: { id: true, name: true } },
+        supplier: { select: { companyName: true } }
+      }
+    });
+    
     if (!purchase) {
       return NextResponse.json(
         { error: 'خرید یافت نشد' },
@@ -69,6 +75,10 @@ export async function POST(req: NextRequest) {
           amount: numericAmount,
           paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
           note: note || null,
+          method: method || 'CASH',
+          checkNumber: checkNumber || null,
+          bankName: bankName || null,
+          dueDate: dueDate ? new Date(dueDate) : null,
         },
         include: {
           purchase: {
@@ -102,6 +112,41 @@ export async function POST(req: NextRequest) {
       return { payment, newPaidAmount, newStatus };
     });
 
+    // اگر فاکتور به طور کامل پرداخت شد (وضعیت = paid)
+    if (result.newStatus === 'paid') {
+      // پیدا کردن انباردار پروژه
+      const warehouseKeeper = await db.projectMember.findFirst({
+        where: {
+          projectId: purchase.projectId,
+          role: {
+            name: 'WAREHOUSE_KEEPER'
+          }
+        },
+        include: {
+          user: true,
+          role: true  // 👈 role رو هم بگیر
+        }
+      });
+
+      if (warehouseKeeper) {
+        // ایجاد نوتیفیکیشن برای انباردار با roleId و projectId
+        await db.notification.create({
+          data: {
+            userId: warehouseKeeper.userId,
+            roleId: warehouseKeeper.roleId, 
+            title: '📦 فاکتور آماده تحویل',
+            message: `فاکتور ${purchase.invoiceNumber} از ${purchase.supplier?.companyName} پرداخت شد و آماده تحویل به انبار است.`,
+            type: 'info',
+            projectId: purchase.projectId, 
+          },
+        });
+        
+        console.log(`✅ نوتیفیکیشن برای انباردار (${warehouseKeeper.user.name}) ارسال شد`);
+      } else {
+        console.log(`⚠️ انبارداری برای پروژه ${purchase.project?.name} یافت نشد`);
+      }
+    }
+
     return NextResponse.json(
       {
         payment: result.payment,
@@ -114,6 +159,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'خطای سرور';
+    console.error('Payment error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

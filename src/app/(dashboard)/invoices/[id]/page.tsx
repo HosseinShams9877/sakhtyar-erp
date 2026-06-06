@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
   ArrowLeft, FileText, Truck, Receipt, 
-  CreditCard, CalendarDays, Package, Building2 
+  CreditCard, CalendarDays, Package, Building2,
+  AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { 
@@ -41,7 +42,10 @@ interface InvoiceDetail {
     unit: string;
     unitPrice: number;
     totalPrice: number;
-  }> | [];
+    actualQuantity?: number | null;
+    discrepancy?: string | null;
+    hasDiscrepancy?: boolean;
+  }>;
 }
 
 export default function InvoiceDetailPage() {
@@ -62,6 +66,8 @@ export default function InvoiceDetailPage() {
       const data = await res.json();
       if (res.ok) {
         setInvoice(data);
+      } else {
+        console.error('Error:', data.error);
       }
     } catch (error) {
       console.error('Error fetching invoice:', error);
@@ -79,6 +85,8 @@ export default function InvoiceDetailPage() {
   }
 
   const remainingAmount = invoice.totalAmount - invoice.paidAmount;
+  const hasAnyDiscrepancy = invoice.items?.some(item => item.hasDiscrepancy) || false;
+  
   const statusColors: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700',
     approved: 'bg-emerald-100 text-emerald-700',
@@ -88,7 +96,7 @@ export default function InvoiceDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/invoices">
@@ -103,6 +111,23 @@ export default function InvoiceDetailPage() {
           <p className="text-sm text-muted-foreground">مشاهده اطلاعات کامل فاکتور</p>
         </div>
       </div>
+
+      {/* هشدار مغایرت */}
+      {hasAnyDiscrepancy && (
+        <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-orange-600" />
+            <div>
+              <p className="text-sm font-bold text-orange-700 dark:text-orange-400">
+                ⚠️ مغایرت در تحویل کالا
+              </p>
+              <p className="text-xs text-orange-600 dark:text-orange-300">
+                در برخی از اقلام این فاکتور مغایرت وجود دارد. لطفاً جزئیات را در جدول اقلام مشاهده کنید.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-0 shadow-soft">
         <CardContent className="p-6 space-y-6">
@@ -156,58 +181,97 @@ export default function InvoiceDetailPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-xs text-muted-foreground mb-1">مبلغ کل</p>
-              <p className="text-sm font-bold" dir="ltr">{formatCurrency(invoice.totalAmount)}</p>
+              <p className="text-sm font-bold text-right" dir="ltr">{formatCurrency(invoice.totalAmount)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">پرداخت شده</p>
-              <p className="text-sm font-bold text-emerald-600" dir="ltr">{formatCurrency(invoice.paidAmount)}</p>
+              <p className="text-sm font-bold text-emerald-600 text-right" dir="ltr">{formatCurrency(invoice.paidAmount)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">باقی‌مانده</p>
-              <p className="text-sm font-bold text-red-600" dir="ltr">{formatCurrency(remainingAmount)}</p>
+              <p className="text-sm font-bold text-red-600 text-right" dir="ltr">{formatCurrency(remainingAmount)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">سررسید</p>
-              <p className="text-sm font-bold">{formatDate(invoice.dueDate)}</p>
+              <p className="text-sm font-bold text-right">{formatDate(invoice.dueDate)}</p>
             </div>
           </div>
 
           <Separator />
 
-          {/* آیتم‌ها */}
-          {/* آیتم‌ها - با بررسی وجود items */}
-{invoice.items && invoice.items.length > 0 && (
-  <div>
-    <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
-      <Package className="w-4 h-4" />
-      آیتم‌های فاکتور
-    </h4>
-    <div className="border rounded-xl overflow-hidden">
-      <table className="w-full">
-        <thead className="bg-muted/40">
-          <tr>
-            <th className="text-right p-3 text-xs font-semibold">نام کالا</th>
-            <th className="text-right p-3 text-xs font-semibold">تعداد</th>
-            <th className="text-right p-3 text-xs font-semibold">واحد</th>
-            <th className="text-right p-3 text-xs font-semibold">قیمت واحد</th>
-            <th className="text-right p-3 text-xs font-semibold">مبلغ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {invoice.items.map((item) => (
-            <tr key={item.id} className="border-t">
-              <td className="p-3 text-sm">{item.materialName}</td>
-              <td className="p-3 text-sm" dir="ltr">{toPersianDigits(item.quantity)}</td>
-              <td className="p-3 text-sm">{UNIT_LABELS[item.unit] || item.unit}</td>
-              <td className="p-3 text-sm" dir="ltr">{formatCurrency(item.unitPrice)}</td>
-              <td className="p-3 text-sm font-semibold" dir="ltr">{formatCurrency(item.totalPrice)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
+          {/* آیتم‌ها با نمایش مغایرت */}
+          {invoice.items && invoice.items.length > 0 && (
+            <div>
+              <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                آیتم‌های فاکتور
+              </h4>
+              <div className="border rounded-xl overflow-x-auto">
+                <table className="w-full min-w-[700px]">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="text-right p-3 text-xs font-semibold">نام کالا</th>
+                      <th className="text-right p-3 text-xs font-semibold">تعداد فاکتور</th>
+                      <th className="text-right p-3 text-xs font-semibold">تعداد تحویل</th>
+                      <th className="text-right p-3 text-xs font-semibold">واحد</th>
+                      <th className="text-right p-3 text-xs font-semibold">قیمت واحد</th>
+                      <th className="text-right p-3 text-xs font-semibold">مبلغ</th>
+                      <th className="text-right p-3 text-xs font-semibold">وضعیت</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoice.items.map((item) => {
+                      const hasDiscrepancy = item.hasDiscrepancy;
+                      const isShortage = item.actualQuantity !== undefined && 
+                                         item.actualQuantity !== null && 
+                                         item.actualQuantity < item.quantity;
+                      
+                      return (
+                        <tr key={item.id} className={`border-t ${hasDiscrepancy ? 'bg-orange-50/50 dark:bg-orange-950/10 text-right' : ''}`}>
+                          <td className="p-3 text-sm text-right">{item.materialName}</td>
+                          <td className="p-3 text-sm text-right" dir="ltr">{toPersianDigits(item.quantity)}</td>
+                          <td className="p-3 text-sm text-right" dir="ltr">
+                            {item.actualQuantity !== undefined && item.actualQuantity !== null ? (
+                              <span className={isShortage ? 'text-red-600 font-bold' : 'text-emerald-600'}>
+                                {toPersianDigits(item.actualQuantity)}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-right">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-sm">{UNIT_LABELS[item.unit] || item.unit}</td>
+                          <td className="p-3 text-sm" dir="ltr">{formatCurrency(item.unitPrice)}</td>
+                          <td className="p-3 text-sm font-semibold" dir="ltr">{formatCurrency(item.totalPrice)}</td>
+                          <td className="p-3">
+                            {hasDiscrepancy ? (
+                              <div className="flex flex-col gap-1">
+                                <Badge className="bg-orange-100 text-orange-700 text-[10px] gap-1 w-fit">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  مغایرت
+                                </Badge>
+                                {item.discrepancy && (
+                                  <span className="text-[10px] text-orange-600 max-w-[150px]">
+                                    {item.discrepancy}
+                                  </span>
+                                )}
+                              </div>
+                            ) : item.actualQuantity !== undefined && item.actualQuantity !== null ? (
+                              <Badge className="bg-emerald-100 text-emerald-700 text-[10px] gap-1 w-fit">
+                                <CheckCircle2 className="w-3 h-3" />
+                                تطابق
+                              </Badge>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">در انتظار تحویل</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* توضیحات */}
           {invoice.description && (

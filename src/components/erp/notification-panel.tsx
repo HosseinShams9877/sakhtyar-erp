@@ -1,16 +1,14 @@
 // ─── پنل نوتیفیکیشن ───
-// نمایش نوتیفیکیشن‌ها با badge شمارنده
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Bell, Check, AlertTriangle, Info, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
+import { Bell, Check, AlertTriangle, Info, CheckCircle2, XCircle, X, Trash2 } from 'lucide-react';
 import { formatDate, toPersianDigits } from '@/lib/rbac';
 import { toast } from 'sonner';
+import { useProject } from '@/components/project-context';
 
 interface Notification {
   id: string;
@@ -20,6 +18,8 @@ interface Notification {
   isRead: boolean;
   link: string | null;
   createdAt: string;
+  projectId?: string | null;
+  projectName?: string | null;
 }
 
 const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
@@ -33,11 +33,14 @@ export default function NotificationPanel() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const { activeProject } = useProject();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch('/api/notifications');
+        const projectQuery = activeProject?.id ? `?projectId=${activeProject.id}` : '';
+        const res = await fetch(`/api/notifications${projectQuery}`);
         if (res.ok) {
           const data = await res.json();
           setNotifications(data.notifications || []);
@@ -48,10 +51,9 @@ export default function NotificationPanel() {
       }
     }
     load();
-    // بررسی هر ۶۰ ثانیه
     const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeProject?.id]);
 
   const markAsRead = async (id: string) => {
     try {
@@ -82,6 +84,30 @@ export default function NotificationPanel() {
     } catch {}
   };
 
+  // ✅ حذف نوتیفیکیشن
+  const deleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId: id }),
+      });
+      if (res.ok) {
+        const deleted = notifications.find(n => n.id === id);
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        if (deleted && !deleted.isRead) {
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+        toast.success('نوتیفیکیشن حذف شد');
+      } else {
+        toast.error('خطا در حذف نوتیفیکیشن');
+      }
+    } catch {
+      toast.error('خطا در حذف نوتیفیکیشن');
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -92,39 +118,68 @@ export default function NotificationPanel() {
         >
           <Bell className="w-4 h-4" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] gradient-danger text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg">
               {toPersianDigits(unreadCount > 99 ? '۹۹+' : unreadCount)}
             </span>
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-[360px] p-0" dir="rtl">
+      <SheetContent side="left" className="w-[380px] p-0 rounded-r-2xl" dir="rtl">
         <SheetTitle className="sr-only">نوتیفیکیشن‌ها</SheetTitle>
         <div className="flex flex-col h-full">
           {/* هدر */}
-          <div className="flex items-center justify-between p-4 border-b border-border/50">
-            <div>
-              <h3 className="font-bold text-sm">نوتیفیکیشن‌ها</h3>
-              {unreadCount > 0 && (
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {toPersianDigits(unreadCount)} نوتیفیکیشن خوانده‌نشده
-                </p>
-              )}
+          <div className="sticky top-0 z-10 bg-white dark:bg-gray-950 rounded-r-2xl border-b border-border/50">
+            <div className="flex items-center justify-between p-4">
+              <div className="flex-1">
+                <h3 className="font-bold text-base">نوتیفیکیشن‌ها</h3>
+                {unreadCount > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {toPersianDigits(unreadCount)} نوتیفیکیشن خوانده‌نشده
+                  </p>
+                )}
+                {activeProject && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    نمایش پروژه: {activeProject.name}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={markAllAsRead} 
+                    className="text-xs gap-1.5 rounded-xl h-8"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    خواندن همه
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setOpen(false)}
+                  className="w-8 h-8 rounded-full hover:bg-muted"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              </div>
             </div>
-            {unreadCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={markAllAsRead} className="text-xs gap-1.5 rounded-lg">
-                <Check className="w-3.5 h-3.5" />
-                خواندن همه
-              </Button>
-            )}
           </div>
 
           {/* لیست */}
-          <ScrollArea className="flex-1">
+          <div 
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto overscroll-contain"
+            style={{ maxHeight: 'calc(100vh - 130px)', minHeight: '200px' }}
+          >
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
                 <Bell className="w-12 h-12 mb-3 opacity-20" />
-                <p className="text-sm">نوتیفیکیشنی وجود ندارد</p>
+                <p className="text-sm font-medium">نوتیفیکیشنی وجود ندارد</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  با ایجاد فاکتورهای جدید، نوتیفیکیشن‌ها اینجا نمایش داده می‌شوند
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-border/30">
@@ -134,35 +189,67 @@ export default function NotificationPanel() {
                   return (
                     <div
                       key={n.id}
-                      className={`p-4 transition-colors cursor-pointer hover:bg-muted/50 ${!n.isRead ? config.bg : ''}`}
+                      className={`group p-4 transition-all duration-200 cursor-pointer hover:bg-muted/50 ${
+                        !n.isRead ? config.bg : ''
+                      } ${!n.isRead ? 'border-r-4 border-r-primary' : ''}`}
                       onClick={() => {
                         if (!n.isRead) markAsRead(n.id);
                         if (n.link) window.location.href = n.link;
                       }}
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${config.bg}`}>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${config.bg} shadow-sm`}>
                           <Icon className={`w-4 h-4 ${config.color}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className={`text-sm font-semibold truncate ${!n.isRead ? '' : 'text-muted-foreground'}`}>
+                            <p className={`text-sm font-semibold truncate ${!n.isRead ? 'text-foreground' : 'text-muted-foreground'}`}>
                               {n.title}
                             </p>
                             {!n.isRead && (
-                              <span className="w-2 h-2 rounded-full gradient-primary flex-shrink-0" />
+                              <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 animate-pulse" />
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{n.message}</p>
-                          <p className="text-[10px] text-muted-foreground mt-1.5">{formatDate(n.createdAt)}</p>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                            {n.message}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <p className="text-[10px] text-muted-foreground">{formatDate(n.createdAt)}</p>
+                            {n.projectName && (
+                              <>
+                                <span className="text-[10px] text-muted-foreground">•</span>
+                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 rounded-md">
+                                  {n.projectName}
+                                </Badge>
+                              </>
+                            )}
+                          </div>
                         </div>
+                        {/* ✅ دکمه حذف */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => deleteNotification(n.id, e)}
+                          className="w-7 h-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hover:bg-red-100 dark:hover:bg-red-900/30"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        </Button>
                       </div>
                     </div>
                   );
                 })}
               </div>
             )}
-          </ScrollArea>
+          </div>
+
+          {/* فوتر */}
+          {notifications.length > 0 && (
+            <div className="sticky bottom-0 z-10 bg-white dark:bg-gray-950 border-t border-border/50 p-3 text-center">
+              <p className="text-[10px] text-muted-foreground">
+                {toPersianDigits(notifications.length)} نوتیفیکیشن • {toPersianDigits(unreadCount)} خوانده‌نشده
+              </p>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

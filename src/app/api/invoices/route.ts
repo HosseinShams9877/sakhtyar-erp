@@ -15,32 +15,64 @@ export async function GET(req: NextRequest) {
   // گرفتن پارامترها از URL
   const url = new URL(req.url);
   const id = url.searchParams.get('id');
-
-  // ─── دریافت یک فاکتور خاص با ID ───
-  if (id) {
-    try {
-      const purchase = await db.purchase.findUnique({
-        where: { id },
-        include: {
-          supplier: true,
-          project: true,
-          items: true,
-          payments: true,
-          delivery: true,
-          createdBy: { select: { id: true, name: true, email: true } },
-        },
-      });
-      
-      if (!purchase) {
-        return addSecurityHeaders(NextResponse.json({ error: 'فاکتور یافت نشد' }, { status: 404 }));
-      }
-      
-      return addSecurityHeaders(NextResponse.json(purchase));
-    } catch (error: unknown) {
-      console.error('Get single invoice error:', error);
-      return addSecurityHeaders(NextResponse.json({ error: 'خطا در دریافت فاکتور' }, { status: 500 }));
+// ─── دریافت یک فاکتور خاص با ID ───
+if (id) {
+  try {
+    const purchase = await db.purchase.findUnique({
+      where: { id },
+      include: {
+        supplier: true,
+        project: true,
+        items: true,
+        payments: true,
+        delivery: true,
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    });
+    
+    if (!purchase) {
+      return addSecurityHeaders(NextResponse.json({ error: 'فاکتور یافت نشد' }, { status: 404 }));
     }
+    
+    // ✅ جداگانه تراکنش‌های DELIVERY را از جدول Transaction بگیر
+    const transactions = await db.transaction.findMany({
+      where: {
+        purchaseId: id,
+        type: 'DELIVERY',
+      },
+      select: {
+        materialId: true,
+        actualQuantity: true,
+        discrepancy: true,
+        quantity: true,
+      },
+    });
+    
+    // اضافه کردن مغایرت به آیتم‌ها
+    const itemsWithDiscrepancy = purchase.items.map(item => {
+      const relatedTransaction = transactions.find(t => t.materialId === item.materialId);
+      const hasDiscrepancy = relatedTransaction?.actualQuantity !== undefined && 
+                             relatedTransaction.actualQuantity !== item.quantity;
+      
+      return {
+        ...item,
+        actualQuantity: relatedTransaction?.actualQuantity ?? null,
+        discrepancy: relatedTransaction?.discrepancy ?? null,
+        hasDiscrepancy: hasDiscrepancy,
+      };
+    });
+    
+    const result = {
+      ...purchase,
+      items: itemsWithDiscrepancy,
+    };
+    
+    return addSecurityHeaders(NextResponse.json(result));
+  } catch (error: unknown) {
+    console.error('Get single invoice error:', error);
+    return addSecurityHeaders(NextResponse.json({ error: 'خطا در دریافت فاکتور' }, { status: 500 }));
   }
+}
 
   const page = parseInt(url.searchParams.get('page') || '1');
   const pageSize = parseInt(url.searchParams.get('pageSize') || '12');

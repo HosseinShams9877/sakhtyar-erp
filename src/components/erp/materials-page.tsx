@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useProject } from '@/components/project-context';
+import { useAuth } from '@/components/auth-provider';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -37,6 +38,9 @@ const emptyForm = { name: '', code: '', categoryId: '', unit: 'KILOGRAM', minSto
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const { activeProject } = useProject();
+  const { session } = useAuth();
+  const userRole = (session?.user as any)?.role as string || 'WAREHOUSE_KEEPER';
+  const isAdmin = userRole === 'SUPER_MANAGER' || userRole === 'ADMIN';
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
@@ -48,38 +52,16 @@ export default function MaterialsPage() {
   const [form, setForm] = useState(emptyForm);
 
   const loadData = useCallback(async () => {
-    setLoading(true);  // ✅ اضافه کن
+    setLoading(true);
     try {
       const projectId = activeProject?.id || '';
-      console.log('🔍 MaterialsPage - activeProject:', activeProject);
-      console.log('🔍 MaterialsPage - projectId:', projectId);
-      
       const url = `/api/materials?search=${search}&categoryId=${filterCat}&projectId=${projectId}`;
-      console.log('🔍 MaterialsPage - Fetching URL:', url);
-      
       const res = await fetch(url);
-      console.log('🔍 MaterialsPage - Response status:', res.status);
-      
       const data = await res.json();
-      console.log('🔍 MaterialsPage - Raw response:', data);
-      
-      // پیدا کردن سیمان تیپ ۲ در response
-      const cement = data.materials?.find((m: any) => m.name === 'سیمان تیپ ۲');
-      if (cement) {
-        console.log('🔍 سیمان تیپ ۲ در MaterialsPage:', {
-          name: cement.name,
-          stock: cement.stock,
-          minStock: cement.minStock,
-          unit: cement.unit
-        });
-      } else {
-        console.log('❌ سیمان تیپ ۲ در پاسخ API یافت نشد!');
-      }
-      
       setMaterials(data.materials || []);
       setCategories(data.categories || []);
     } catch (error) {
-      console.error('❌ MaterialsPage - Error loading data:', error);
+      console.error('Error loading materials:', error);
     } finally { 
       setLoading(false); 
     }
@@ -133,7 +115,7 @@ export default function MaterialsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-extrabold">مدیریت مصالح</h3>
@@ -151,113 +133,141 @@ export default function MaterialsPage() {
               {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
             </SelectContent>
           </Select>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2 gradient-primary hover:opacity-90 rounded-xl shadow-soft"><Plus className="w-4 h-4" /><span className="hidden sm:inline">مصالح جدید</span></Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md rounded-2xl" dir="rtl">
-              <DialogHeader><DialogTitle className="text-base font-bold">ثبت مصالح جدید</DialogTitle></DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-                <div className="space-y-2"><Label className="text-xs font-semibold">نام مصالح *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-modern rounded-xl" required /></div>
-                <div className="space-y-2"><Label className="text-xs font-semibold">کد مصالح *</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="مصالح-XXX" className="input-modern rounded-xl" required /></div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label className="text-xs font-semibold">دسته‌بندی *</Label>
-                    <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
-                      <SelectTrigger className="rounded-xl"><SelectValue placeholder="انتخاب" /></SelectTrigger>
-                      <SelectContent>{categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
-                    </Select>
+          {isAdmin && (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 gradient-primary hover:opacity-90 rounded-xl shadow-soft"><Plus className="w-4 h-4" /><span className="hidden sm:inline">مصالح جدید</span></Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md rounded-2xl" dir="rtl">
+                <DialogHeader><DialogTitle className="text-base font-bold">ثبت مصالح جدید</DialogTitle></DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                  <div className="space-y-2"><Label className="text-xs font-semibold">نام مصالح *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-modern rounded-xl" required /></div>
+                  <div className="space-y-2"><Label className="text-xs font-semibold">کد مصالح *</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="مصالح-XXX" className="input-modern rounded-xl" required /></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2"><Label className="text-xs font-semibold">دسته‌بندی *</Label>
+                      <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
+                        <SelectTrigger className="rounded-xl"><SelectValue placeholder="انتخاب" /></SelectTrigger>
+                        <SelectContent>{categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2"><Label className="text-xs font-semibold">واحد</Label>
+                      <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
+                        <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>{Object.entries(UNIT_LABELS).map(([k, v]) => (<SelectItem key={k} value={k}>{v}</SelectItem>))}</SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2"><Label className="text-xs font-semibold">واحد</Label>
-                    <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
-                      <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(UNIT_LABELS).map(([k, v]) => (<SelectItem key={k} value={k}>{v}</SelectItem>))}</SelectContent>
-                    </Select>
+                  <div className="space-y-2"><Label className="text-xs font-semibold">حداقل موجودی</Label><Input type="number" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} className="input-modern rounded-xl" /></div>
+                  <div className="space-y-2"><Label className="text-xs font-semibold">توضیحات</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-modern rounded-xl" /></div>
+                  <div className="flex gap-3 justify-end">
+                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="rounded-xl">انصراف</Button>
+                    <Button type="submit" disabled={submitting} className="gradient-primary hover:opacity-90 rounded-xl shadow-soft">{submitting ? '...' : 'ثبت'}</Button>
                   </div>
-                </div>
-                <div className="space-y-2"><Label className="text-xs font-semibold">حداقل موجودی</Label><Input type="number" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} className="input-modern rounded-xl" /></div>
-                <div className="space-y-2"><Label className="text-xs font-semibold">توضیحات</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-modern rounded-xl" /></div>
-                <div className="flex gap-3 justify-end">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="rounded-xl">انصراف</Button>
-                  <Button type="submit" disabled={submitting} className="gradient-primary hover:opacity-90 rounded-xl shadow-soft">{submitting ? '...' : 'ثبت'}</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md rounded-2xl" dir="rtl">
-          <DialogHeader><DialogTitle className="text-base font-bold">ویرایش مصالح</DialogTitle></DialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-4 mt-4">
-            <div className="space-y-2"><Label className="text-xs font-semibold">نام مصالح *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-modern rounded-xl" required /></div>
-            <div className="space-y-2"><Label className="text-xs font-semibold">کد مصالح *</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="input-modern rounded-xl" required /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label className="text-xs font-semibold">دسته‌بندی *</Label>
-                <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
-                  <SelectTrigger className="rounded-xl"><SelectValue placeholder="انتخاب" /></SelectTrigger>
-                  <SelectContent>{categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
-                </Select>
+      {/* Edit Dialog - فقط برای ادمین */}
+      {isAdmin && (
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="max-w-md rounded-2xl" dir="rtl">
+            <DialogHeader><DialogTitle className="text-base font-bold">ویرایش مصالح</DialogTitle></DialogHeader>
+            <form onSubmit={handleEditSubmit} className="space-y-4 mt-4">
+              <div className="space-y-2"><Label className="text-xs font-semibold">نام مصالح *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-modern rounded-xl" required /></div>
+              <div className="space-y-2"><Label className="text-xs font-semibold">کد مصالح *</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="input-modern rounded-xl" required /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label className="text-xs font-semibold">دسته‌بندی *</Label>
+                  <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="انتخاب" /></SelectTrigger>
+                    <SelectContent>{categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label className="text-xs font-semibold">واحد</Label>
+                  <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
+                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectContent>{Object.entries(UNIT_LABELS).map(([k, v]) => (<SelectItem key={k} value={k}>{v}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2"><Label className="text-xs font-semibold">واحد</Label>
-                <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
-                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                  <SelectContent>{Object.entries(UNIT_LABELS).map(([k, v]) => (<SelectItem key={k} value={k}>{v}</SelectItem>))}</SelectContent>
-                </Select>
+              <div className="space-y-2"><Label className="text-xs font-semibold">حداقل موجودی</Label><Input type="number" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} className="input-modern rounded-xl" /></div>
+              <div className="space-y-2"><Label className="text-xs font-semibold">توضیحات</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-modern rounded-xl" /></div>
+              <div className="flex gap-3 justify-end">
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} className="rounded-xl">انصراف</Button>
+                <Button type="submit" disabled={submitting} className="gradient-primary hover:opacity-90 rounded-xl shadow-soft">{submitting ? '...' : 'ویرایش'}</Button>
               </div>
-            </div>
-            <div className="space-y-2"><Label className="text-xs font-semibold">حداقل موجودی</Label><Input type="number" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} className="input-modern rounded-xl" /></div>
-            <div className="space-y-2"><Label className="text-xs font-semibold">توضیحات</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-modern rounded-xl" /></div>
-            <div className="flex gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} className="rounded-xl">انصراف</Button>
-              <Button type="submit" disabled={submitting} className="gradient-primary hover:opacity-90 rounded-xl shadow-soft">{submitting ? '...' : 'ویرایش'}</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Card className="border-0 shadow-soft overflow-hidden">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-            <TableHeader>
-  <TableRow className="bg-muted/40 hover:bg-muted/40">
-    <TableHead className="text-right text-xs font-semibold">کد</TableHead>
-    <TableHead className="text-right text-xs font-semibold">نام</TableHead>
-    <TableHead className="text-right text-xs font-semibold">دسته‌بندی</TableHead>
-    <TableHead className="text-right text-xs font-semibold">واحد</TableHead>
-    <TableHead className="text-right text-xs font-semibold">موجودی فعلی</TableHead>
-    <TableHead className="text-right text-xs font-semibold">حداقل موجودی</TableHead>
-    <TableHead className="text-right text-xs font-semibold">عملیات</TableHead>
-  </TableRow>
-</TableHeader>
-<TableBody>
-  {loading ? (
-    [...Array(5)].map((_, i) => (<TableRow key={i}>{[...Array(7)].map((_, j) => (<TableCell key={j}><div className="h-4 bg-muted/50 rounded animate-pulse" /></TableCell>))}</TableRow>))
-  ) : materials.length === 0 ? (
-    <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">یافت نشد</TableCell></TableRow>
-  ) : (
-    materials.map((m) => (
-      <TableRow key={m.id} className="hover:bg-muted/30 transition-colors">
-        <TableCell><Badge variant="outline" className="text-[10px] font-mono">{toPersianDigits(m.code)}</Badge></TableCell>
-        <TableCell className="font-semibold text-sm">{m.name}</TableCell>
-        <TableCell className="text-sm">{m.category?.name || '—'}</TableCell>
-        <TableCell className="text-sm">{UNIT_LABELS[m.unit] || m.unit}</TableCell>
-        {/* ✅ ستون موجودی فعلی با رنگ‌بندی */}
-        <TableCell className="text-sm">
-          <span className={m.stock <= m.minStock ? 'text-red-600 font-bold' : 'text-emerald-600 font-medium'}>
-            {toPersianDigits(m.stock)} {UNIT_LABELS[m.unit] || m.unit}
-          </span>
-        </TableCell>
-        <TableCell className="text-sm">{toPersianDigits(m.minStock)}</TableCell>
-        <TableCell>
-          {/* دکمه‌های عملیات */}
-        </TableCell>
-      </TableRow>
-    ))
-  )}
-</TableBody>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-right text-xs font-semibold">کد</TableHead>
+                  <TableHead className="text-right text-xs font-semibold">نام</TableHead>
+                  <TableHead className="text-right text-xs font-semibold">دسته‌بندی</TableHead>
+                  <TableHead className="text-right text-xs font-semibold">واحد</TableHead>
+                  <TableHead className="text-right text-xs font-semibold">موجودی فعلی</TableHead>
+                  <TableHead className="text-right text-xs font-semibold">حداقل موجودی</TableHead>
+                  {isAdmin && <TableHead className="text-right text-xs font-semibold">عملیات</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  [...Array(5)].map((_, i) => (<TableRow key={i}>{[...Array(isAdmin ? 7 : 6)].map((_, j) => (<TableCell key={j}><div className="h-4 bg-muted/50 rounded animate-pulse" /></TableCell>))}</TableRow>))
+                ) : materials.length === 0 ? (
+                  <TableRow><TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-12 text-muted-foreground">مصالحی یافت نشد</TableCell></TableRow>
+                ) : (
+                  materials.map((m) => (
+                    <TableRow key={m.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell><Badge variant="outline" className="text-[10px] font-mono">{toPersianDigits(m.code)}</Badge></TableCell>
+                      <TableCell className="font-semibold text-sm">{m.name}</TableCell>
+                      <TableCell className="text-sm">{m.category?.name || '—'}</TableCell>
+                      <TableCell className="text-sm">{UNIT_LABELS[m.unit] || m.unit}</TableCell>
+                      <TableCell className="text-sm">
+                        <span className={m.stock <= m.minStock ? 'text-red-600 font-bold' : 'text-emerald-600 font-medium'}>
+                          {toPersianDigits(m.stock)} {UNIT_LABELS[m.unit] || m.unit}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm">{toPersianDigits(m.minStock)}</TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg hover:bg-blue-50" onClick={() => handleEdit(m)}>
+                              <Pencil className="w-3.5 h-3.5 text-blue-600" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="w-8 h-8 rounded-lg hover:bg-red-50">
+                                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>حذف مصالح</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    آیا از حذف مصالح "{m.name}" اطمینان دارید؟
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>انصراف</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(m.id)} className="bg-red-600">حذف</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
             </Table>
           </div>
         </CardContent>

@@ -393,16 +393,7 @@ const loadStocks = useCallback(async () => {
             خرید ← تحویل ← انبار ← مصرف
           </p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button
-            className="gap-2 gradient-primary hover:opacity-90 rounded-xl shadow-soft"
-            disabled={!selectedProjectId}
-            onClick={() => setAddDialogOpen(true)}
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">اصلاح موجودی</span>
-          </Button>
-        </div>
+       
       </div>
 
       {/* ─── Summary Stats ─── */}
@@ -678,77 +669,6 @@ const loadStocks = useCallback(async () => {
           </div>
         </>
       )}
-
-      {/* ─── Add Stock Dialog ─── */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="max-w-md rounded-2xl" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <Plus className="w-4 h-4 text-primary" />
-              افزودن موجودی به انبار
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAddStock} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">مصالح *</Label>
-              <Select value={form.materialId} onValueChange={(v) => setForm({ ...form, materialId: v })}>
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="انتخاب مصالح" />
-                </SelectTrigger>
-                <SelectContent>
-                  {materials.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name} ({UNIT_LABELS[m.unit] || m.unit})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold">مقدار *</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={form.quantity}
-                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                  className="input-modern rounded-xl"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold">رزرو شده</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={form.reservedQuantity}
-                  onChange={(e) => setForm({ ...form, reservedQuantity: e.target.value })}
-                  className="input-modern rounded-xl"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setAddDialogOpen(false)}
-                className="rounded-xl"
-              >
-                انصراف
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="gradient-primary hover:opacity-90 rounded-xl shadow-soft"
-              >
-                {submitting ? '...' : 'ثبت'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* ─── Confirm Delivery Dialog ─── */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>

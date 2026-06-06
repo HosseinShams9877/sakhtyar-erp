@@ -62,6 +62,7 @@ model Role {
 
   users       User[]
   permissions RolePermission[]
+  notifications Notification[]
   projectMembers ProjectMember[]
 }
 
@@ -372,9 +373,12 @@ model Notification {
   type      String   @default("info") // info, warning, error, success
   isRead    Boolean  @default(false)
   link      String?
+  roleId    String?
+  projectId String?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role? @relation(fields: [roleId], references: [id], onDelete: Cascade)
 }
 
 // ─── هشدارهای سیستم ───

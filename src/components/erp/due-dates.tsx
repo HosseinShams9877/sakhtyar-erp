@@ -293,7 +293,7 @@ export default function DueDates() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 p-8">
       {/* ─── هدر صفحه ─── */}
       <div className="flex items-center justify-between">
         <div>

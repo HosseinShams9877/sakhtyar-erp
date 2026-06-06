@@ -57,12 +57,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
 // POST /api/projects — Create project
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, code, location, status, budget, description, managerId, purchaseResponsibleId, warehouseKeeperId } = body;
+    const { name, code, location, status, budget, startDate, endDate, description, managerId, purchaseResponsibleId, warehouseKeeperId } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -83,18 +82,21 @@ export async function POST(req: NextRequest) {
         name,
         code,
         location: location || '',
-        status: status || 'active',
+        status: status ? status.toLowerCase() : 'active',
         budget: budget || 0,
-        description,
-        managerId,
-        purchaseResponsibleId,
-        warehouseKeeperId,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        description: description || null,
+        managerId: managerId || null,
+        purchaseResponsibleId: purchaseResponsibleId || null,
+        warehouseKeeperId: warehouseKeeperId || null,
       },
     });
 
     return NextResponse.json(project, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'خطای سرور';
+    console.error('Error in POST project:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -103,7 +105,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, name, code, location, status, budget, description, managerId, purchaseResponsibleId, warehouseKeeperId } = body;
+    const { id, name, code, location, status, budget, startDate, endDate, description, managerId, purchaseResponsibleId, warehouseKeeperId } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -124,12 +126,14 @@ export async function PUT(req: NextRequest) {
     if (name !== undefined) updateData.name = name;
     if (code !== undefined) updateData.code = code;
     if (location !== undefined) updateData.location = location;
-    if (status !== undefined) updateData.status = status;
+    if (status !== undefined) updateData.status = status.toLowerCase();
     if (budget !== undefined) updateData.budget = budget;
-    if (description !== undefined) updateData.description = description;
-    if (managerId !== undefined) updateData.managerId = managerId;
-    if (purchaseResponsibleId !== undefined) updateData.purchaseResponsibleId = purchaseResponsibleId;
-    if (warehouseKeeperId !== undefined) updateData.warehouseKeeperId = warehouseKeeperId;
+    if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
+    if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
+    if (description !== undefined) updateData.description = description || null;
+    if (managerId !== undefined) updateData.managerId = managerId || null;
+    if (purchaseResponsibleId !== undefined) updateData.purchaseResponsibleId = purchaseResponsibleId || null;
+    if (warehouseKeeperId !== undefined) updateData.warehouseKeeperId = warehouseKeeperId || null;
 
     const project = await db.project.update({
       where: { id },
@@ -139,10 +143,10 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(project);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'خطای سرور';
+    console.error('Error in PUT project:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
 // DELETE /api/projects — Delete project
 export async function DELETE(req: NextRequest) {
   try {

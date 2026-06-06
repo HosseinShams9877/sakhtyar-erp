@@ -92,7 +92,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { deliveryId, confirmedBy, image, notes, items: bodyItems } = body;
 
-    // پیدا کردن فاکتور با آیتم‌ها
     const purchase = await db.purchase.findUnique({
       where: { id: deliveryId },
       select: {
@@ -139,11 +138,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ لیست مغایرت‌ها برای نوتیفیکیشن (فقط برای اطلاع، بدون تغییر در موجودی)
     const discrepancies: { materialName: string; quantity: number; actualQuantity: number; note?: string }[] = [];
 
     const result = await db.$transaction(async (tx) => {
-      // 1. ثبت تحویل
       const delivery = await tx.deliveryConfirmation.create({
         data: {
           purchaseId: deliveryId,
@@ -154,15 +151,12 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // 2. به‌روزرسانی وضعیت فاکتور
       await tx.purchase.update({
         where: { id: deliveryId },
         data: { status: 'delivered' },
       });
 
-      // 3. به‌روزرسانی موجودی مصالح (با مقدار فاکتور، نه مقدار مغایرت)
       for (const item of purchase.items) {
-        // ✅ پیدا کردن آیتم متناظر از body برای بررسی مغایرت (فقط برای نوتیفیکیشن)
         const bodyItem = bodyItems?.find((bi: any) => 
           bi.materialId === item.materialId || bi.materialName === item.materialName
         );
@@ -170,7 +164,7 @@ export async function POST(req: NextRequest) {
         const actualQuantity = bodyItem?.actualQuantity ?? item.quantity;
         const discrepancyNote = bodyItem?.discrepancy ?? null;
         
-        // ✅ اگر مغایرت وجود داشت، ثبت کن برای نوتیفیکیشن (بدون تغییر در منطق اصلی)
+        // ثبت مغایرت فقط برای نوتیفیکیشن
         if (actualQuantity !== item.quantity) {
           discrepancies.push({
             materialName: item.materialName,
@@ -200,22 +194,24 @@ export async function POST(req: NextRequest) {
           });
 
           if (material) {
-            // ✅ آپدیت موجودی با مقدار فاکتور (نه مقدار واقعی)
+            // ✅ آپدیت موجودی با مقدار فاکتور (همان item.quantity)
             await tx.material.update({
               where: { id: material.id },
-              data: { stock: { increment: item.quantity } },  // ← مقدار فاکتور
+              data: { stock: { increment: item.quantity } },
             });
 
-            // ثبت تراکنش انبار با مقدار فاکتور
+            // ✅ ثبت تراکنش با مقدار فاکتور و actualQuantity (برای نمایش در جزئیات)
             await tx.transaction.create({
               data: {
                 type: 'DELIVERY',
                 materialId: material.id,
                 projectId: purchase.projectId,
                 supplierId: purchase.supplierId, 
-                quantity: item.quantity,  // ← مقدار فاکتور
+                quantity: item.quantity,           // مقدار فاکتور (برای محاسبه موجودی)
+                actualQuantity: actualQuantity,    // مقدار واقعی (فقط برای نمایش و مغایرت)
+                discrepancy: discrepancyNote,      // توضیح مغایرت
                 unitPrice: item.unitPrice,
-                totalPrice: item.totalPrice,
+                totalPrice: item.totalPrice,       // مبلغ کل فاکتور
                 purchaseId: deliveryId,
                 warehouseConfirmed: true,
                 date: new Date(),
@@ -229,40 +225,39 @@ export async function POST(req: NextRequest) {
       return delivery;
     });
 
-    // ✅ 4. ارسال نوتیفیکیشن در صورت وجود مغایرت (فقط اطلاع‌رسانی)
-    if (discrepancies.length > 0) {
-      // پیدا کردن مدیر پروژه
-      const projectManager = await db.projectMember.findFirst({
-        where: {
-          projectId: purchase.projectId,
-          role: {
-            name: 'PROJECT_MANAGER'
-          }
-        },
-        include: {
-          user: true
-        }
-      });
-
-      if (projectManager) {
-        const discrepancyList = discrepancies.map(d => 
-          `${d.materialName}: فاکتور ${d.quantity} - تحویل ${d.actualQuantity}${d.note ? ` (${d.note})` : ''}`
-        ).join('، ');
-        
-        await db.notification.create({
-          data: {
-            userId: projectManager.userId,
-            title: '⚠️ مغایرت در تحویل کالا',
-            message: `فاکتور ${purchase.invoiceNumber} از ${purchase.supplier?.companyName} دارای مغایرت است. موارد: ${discrepancyList}`,
-            type: 'warning',
-            link: `/invoices/${deliveryId}`,
-          },
-        });
-        
-        console.log('✅ نوتیفیکیشن مغایرت برای مدیر پروژه ارسال شد');
+    // ارسال نوتیفیکیشن در صورت وجود مغایرت
+if (discrepancies.length > 0) {
+  const projectManager = await db.projectMember.findFirst({
+    where: {
+      projectId: purchase.projectId,
+      role: {
+        name: 'PROJECT_MANAGER'
       }
+    },
+    include: {
+      user: true,
+      role: true  // 👈 role رو هم بگیر
     }
+  });
 
+  if (projectManager) {
+    const discrepancyList = discrepancies.map(d => 
+      `${d.materialName}: فاکتور ${d.quantity} - تحویل ${d.actualQuantity}${d.note ? ` (${d.note})` : ''}`
+    ).join('، ');
+    
+    await db.notification.create({
+      data: {
+        userId: projectManager.userId,
+        roleId: projectManager.roleId,  // 👈 اضافه شد
+        title: '⚠️ مغایرت در تحویل کالا',
+        message: `فاکتور ${purchase.invoiceNumber} از ${purchase.supplier?.companyName} دارای مغایرت است. موارد: ${discrepancyList}`,
+        type: 'warning',
+        link: `/invoices/${deliveryId}`,
+        projectId: purchase.projectId,  // 👈 اضافه شد - این همون چیزیه که میخواستی
+      },
+    });
+  }
+}
     return NextResponse.json({ 
       success: true, 
       message: 'تحویل با موفقیت ثبت شد و موجودی انبار به‌روز شد',

@@ -153,6 +153,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
+
 // ============================================
 // PUT /api/shortage-requests - بروزرسانی وضعیت درخواست
 // ============================================
@@ -168,9 +169,13 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // بررسی وجود درخواست
+    // بررسی وجود درخواست با اطلاعات پروژه و مواد
     const existingRequest = await db.shortageRequest.findUnique({
       where: { id },
+      include: {
+        project: { select: { id: true, name: true } },
+        material: { select: { name: true } }
+      }
     });
 
     if (!existingRequest) {
@@ -205,15 +210,69 @@ export async function PUT(req: NextRequest) {
       }
     });
 
-    // اگر درخواست تایید شد، می‌توانی موجودی را آپدیت کنی (اختیاری)
-    // if (status === 'approved') {
-    //   await db.material.update({
-    //     where: { id: existingRequest.materialId },
-    //     data: {
-    //       stock: { increment: existingRequest.quantity }
-    //     }
-    //   });
-    // }
+    // ✅ اگر درخواست تایید شد، نوتیفیکیشن برای مسئول خرید ارسال کن
+    if (status === 'approved') {
+      // پیدا کردن مسئول خرید پروژه
+      const purchaser = await db.projectMember.findFirst({
+        where: {
+          projectId: existingRequest.projectId,
+          role: {
+            name: 'PURCHASER'
+          }
+        },
+        include: {
+          user: true,
+          role: true  // 👈 role رو هم بگیر
+        }
+      });
+
+      if (purchaser) {
+        await db.notification.create({
+          data: {
+            userId: purchaser.userId,
+            roleId: purchaser.roleId,  // 👈 اضافه شد
+            title: '✅ درخواست کسری تایید شد',
+            message: `درخواست کسری ${existingRequest.materialName} به مقدار ${existingRequest.quantity} ${existingRequest.unit === 'KILOGRAM' ? 'کیلوگرم' : 'عدد'} توسط مدیر پروژه تایید شد.`,
+            type: 'success',
+            link: `/materials`,
+            projectId: existingRequest.projectId,
+          },
+        });
+        console.log(`✅ نوتیفیکیشن برای مسئول خرید (${purchaser.user.name}) ارسال شد`);
+      } else {
+        console.log(`⚠️ مسئول خریدی برای پروژه ${existingRequest.project?.name} یافت نشد`);
+      }
+    }
+
+    // اگر درخواست رد شد
+    if (status === 'rejected') {
+      const purchaser = await db.projectMember.findFirst({
+        where: {
+          projectId: existingRequest.projectId,
+          role: {
+            name: 'PURCHASER'
+          }
+        },
+        include: {
+          user: true,
+          role: true  // 👈 role رو هم بگیر
+        }
+      });
+
+      if (purchaser) {
+        await db.notification.create({
+          data: {
+            userId: purchaser.userId,
+            roleId: purchaser.roleId,  // 👈 اضافه شد
+            title: '❌ درخواست کسری رد شد',
+            message: `درخواست کسری ${existingRequest.materialName} به مقدار ${existingRequest.quantity} ${existingRequest.unit === 'KILOGRAM' ? 'کیلوگرم' : 'عدد'} توسط مدیر پروژه رد شد.`,
+            type: 'error',
+            link: `/materials`,
+            projectId: existingRequest.projectId,
+          },
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -228,7 +287,6 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
-
 // ============================================
 // DELETE /api/shortage-requests - حذف درخواست
 // ============================================

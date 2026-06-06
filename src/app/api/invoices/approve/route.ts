@@ -38,12 +38,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'فاکتور یافت نشد' }, { status: 404 });
     }
 
+    // پیدا کردن نقش مسئول خرید
+    const purchaser = await db.projectMember.findFirst({
+      where: {
+        projectId: purchase.projectId,
+        role: { name: 'PURCHASER' }
+      },
+      include: { role: true }
+    });
+
     const userRole = auth.role;
     let newStatus = purchase.status;
 
     switch (action) {
       case 'approve':
-        // ✅ فقط مدیر پروژه و مدیر کل می‌توانند تایید کنند
         if (userRole !== 'PROJECT_MANAGER' && userRole !== 'SUPER_MANAGER') {
           return NextResponse.json({ error: 'شما مجوز تایید فاکتور را ندارید' }, { status: 403 });
         }
@@ -54,7 +62,6 @@ export async function POST(req: NextRequest) {
         break;
 
       case 'reject':
-        // ✅ فقط مدیر پروژه و مدیر کل می‌توانند رد کنند
         if (userRole !== 'PROJECT_MANAGER' && userRole !== 'SUPER_MANAGER') {
           return NextResponse.json({ error: 'شما مجوز رد فاکتور را ندارید' }, { status: 403 });
         }
@@ -65,7 +72,6 @@ export async function POST(req: NextRequest) {
         break;
 
       case 'settle':
-        // ✅ فقط مدیر کل می‌تواند تسویه کند
         if (userRole !== 'SUPER_MANAGER') {
           return NextResponse.json({ error: 'فقط مدیر کل می‌تواند تسویه انجام دهد' }, { status: 403 });
         }
@@ -79,13 +85,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'عملیات نامعتبر است' }, { status: 400 });
     }
 
-    // بروزرسانی وضعیت
     const updatedPurchase = await db.purchase.update({
       where: { id: purchaseId },
       data: { status: newStatus },
     });
 
-    // ثبت لاگ
     await db.approvalLog.create({
       data: {
         purchaseId,
@@ -96,27 +100,29 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // نوتیفیکیشن
+    // نوتیفیکیشن با roleId و projectId
     if (action === 'approve') {
-      // اطلاع به مسئول خرید
       await db.notification.create({
         data: {
           userId: purchase.createdById!,
+          roleId: purchaser?.roleId,  // 👈 اضافه شد
           title: 'فاکتور تایید شد',
           message: `فاکتور ${purchase.invoiceNumber} توسط مدیر پروژه تایید شد`,
           type: 'success',
           link: `/invoices`,
+          projectId: purchase.projectId,  // 👈 اضافه شد
         },
       });
     } else if (action === 'reject') {
-      // اطلاع به مسئول خرید برای اصلاح
       await db.notification.create({
         data: {
           userId: purchase.createdById!,
+          roleId: purchaser?.roleId,  // 👈 اضافه شد
           title: 'فاکتور رد شد',
           message: `فاکتور ${purchase.invoiceNumber} رد شد. لطفاً اصلاح کنید.`,
           type: 'error',
           link: `/invoices`,
+          projectId: purchase.projectId,  // 👈 اضافه شد
         },
       });
     }
