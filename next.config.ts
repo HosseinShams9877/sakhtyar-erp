@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
+initOpenNextCloudflareForDev();
 const nextConfig: NextConfig = {
   // output: "standalone" → فقط برای Docker/سروهای ابری فعال شود
   // در محیط preview باعث خطای 502 می‌شود

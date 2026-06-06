@@ -45,3 +45,4 @@ seed-runner.js
 *.zip
 *.rar
 *.7z
+.open-next
