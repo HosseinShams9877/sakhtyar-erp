@@ -36,6 +36,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTheme } from 'next-themes';
 
+export const dynamic = 'force-dynamic';
 const testAccounts = [
   { nationalCode: '1234567890', mobile: '09121234567', label: 'مدیر کل', role: 'مدیر کل', icon: Crown, color: 'from-purple-500 to-indigo-600' },
   { nationalCode: '1234567891', mobile: '09122345678', label: 'مدیر پروژه', role: 'مدیر پروژه', icon: FolderKanban, color: 'from-blue-500 to-cyan-600' },
@@ -271,7 +272,9 @@ export default function LoginPage() {
         await new Promise(resolve => setTimeout(resolve, 300));
         updateSession();
         // ریدایرکت با ریفرش کامل صفحه
-        window.location.href = '/';
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
       }
     } catch {
       setError('خطا در ارتباط با سرور');
@@ -298,7 +301,9 @@ export default function LoginPage() {
       } else {
         await new Promise(resolve => setTimeout(resolve, 300));
         updateSession();
-        window.location.href = '/';
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
       }
     } catch {
       setError('خطا در ارتباط با سرور');
