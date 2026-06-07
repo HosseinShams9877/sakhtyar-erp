@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
           items: {
             create: await Promise.all((items || []).map(async (item: any, idx: number) => {
               // Find materialId by name, unit and project
-              let materialId = null;
+              let materialId: string | null = null;
               if (item.materialName && item.unit) {
                 const material = await tx.material.findFirst({
                   where: {
@@ -275,7 +275,7 @@ export async function PUT(req: NextRequest) {
             ...updateData,
             items: {
               create: await Promise.all(items.map(async (item: any) => {
-                let materialId = null;
+                let materialId: string | null = null;
                 const finalProjectId = projectId || existing.projectId;
                 
                 if (item.materialName && item.unit) {
