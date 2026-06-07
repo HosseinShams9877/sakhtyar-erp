@@ -1,60 +1,46 @@
-// ─── سیستم پشتیبان‌گیری پایگاه داده ───
+// ─── API پشتیبان‌گیری ───
 // این فایل برای Cloudflare Workers غیرفعال شده است
 // چون از ماژول‌های Node.js استفاده می‌کند که در Edge Runtime در دسترس نیستند
 
-// import { execFile } from 'child_process';
-// import { promisify } from 'util';
-// import fs from 'fs/promises';
-// import path from 'path';
+// import { NextRequest, NextResponse } from 'next/server';
+// import { requirePermission } from '@/lib/api-auth';
+// import { executeBackup, listBackups, cleanupOldBackups } from '@/lib/backup';
+// import { addSecurityHeaders, rateLimit } from '@/lib/security';
 
-// const execFileAsync = promisify(execFile);
-
-// export interface BackupInfo {
-//   fileName: string;
-//   filePath: string;
-//   size: number;
-//   type: 'daily' | 'weekly' | 'manual' | 'pre_restore';
-//   date: string;
+// export async function GET(req: NextRequest) {
+//   const rl = rateLimit(req);
+//   if (!rl.allowed) return addSecurityHeaders(NextResponse.json({ error: 'درخواست بیش از حد مجاز' }, { status: 429 }));
+//   ... بقیه کد کامنت شده
 // }
 
-// export interface BackupResult {
-//   success: boolean;
-//   fileName?: string;
-//   filePath?: string;
-//   size?: number;
-//   error?: string;
+// POST /api/backup - ایجاد بکاپ دستی
+// export async function POST(req: NextRequest) {
+//   ... بقیه کد کامنت شده
 // }
 
-// function getBackupDir(): string {
-//   return process.env.BACKUP_DIR || '/backups';
+// DELETE /api/backup - حذف بکاپ قدیمی
+// export async function DELETE(req: NextRequest) {
+//   ... بقیه کد کامنت شده
 // }
 
-// async function ensureBackupDir(): Promise<void> {
-//   const dir = getBackupDir();
-//   await fs.mkdir(dir, { recursive: true });
-// }
-
-// export async function executeBackup(options?: { label?: string }): Promise<BackupResult> {
-//   // ... بقیه کد
-// }
-
-// export async function listBackups(): Promise<BackupInfo[]> {
-//   // ... بقیه کد
-// }
-
-// export async function cleanupOldBackups(): Promise<{ removed: number }> {
-//   // ... بقیه کد
-// }
-
-// جایگزین ساده برای جلوگیری از خطا
-export async function executeBackup() {
-  return { success: false, error: 'Backup disabled on Cloudflare' };
+// توابع جایگزین خالی برای جلوگیری از خطا
+export async function GET() {
+  return new Response(JSON.stringify({ error: 'Backup API disabled on Cloudflare' }), {
+    status: 503,
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
 
-export async function listBackups() {
-  return [];
+export async function POST() {
+  return new Response(JSON.stringify({ error: 'Backup API disabled on Cloudflare' }), {
+    status: 503,
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
 
-export async function cleanupOldBackups() {
-  return { removed: 0 };
+export async function DELETE() {
+  return new Response(JSON.stringify({ error: 'Backup API disabled on Cloudflare' }), {
+    status: 503,
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
