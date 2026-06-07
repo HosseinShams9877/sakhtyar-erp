@@ -1,18 +1,15 @@
 import type { NextConfig } from "next";
 
-const isDev = process.env.NODE_ENV === 'development';
-
-// فقط در محیط توسعه محلی، OpenNext رو فعال کن
-if (isDev) {
-  const { initOpenNextCloudflareForDev } = require("@opennextjs/cloudflare");
-  initOpenNextCloudflareForDev();
-}
-
 const nextConfig: NextConfig = {
+  // خروجی استاندارد (غیر استاتیک) برای استفاده از API Routes
+  output: 'standalone',
+  
   reactStrictMode: true,
+  
   typescript: {
-    ignoreBuildErrors: true,  // برای دیپلوی موقتاً ignore کن
+    ignoreBuildErrors: true,
   },
+  
   images: {
     unoptimized: process.platform === 'win32',
     remotePatterns: [
@@ -26,8 +23,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', '@radix-ui/react-icons'],
+  },
+  
+  env: {
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'https://sakhteman-yar.pages.dev',
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'dbyo64vvIe9Qo2JKWsoAgM8HZ03TooJSF4zlz6nBuLM=',
   },
 };
 
