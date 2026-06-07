@@ -79,11 +79,11 @@ export async function POST(req: NextRequest) {
     }
 
     // پیدا کردن نقش بر اساس name
-    let finalRoleId = null;
+    let finalRoleId: string | null = null;
     if (roleId) {
       const role = await db.role.findUnique({ where: { name: roleId } });
       if (role) {
-        finalRoleId = role.id;
+        finalRoleId = role.id ?? null;
         console.log(`✅ Role found: ${roleId} -> ${finalRoleId}`);
       } else {
         console.warn(`⚠️ Role not found with name: ${roleId}`);
@@ -187,7 +187,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // پیدا کردن نقش (roleId می‌تواند id واقعی یا name باشد)
-    let finalRoleId = null;
+    let finalRoleId: string | null = null;
     if (roleId) {
       // ابتدا سعی کن با id پیدا کنی
       let role = await db.role.findUnique({ where: { id: roleId } });
@@ -204,7 +204,7 @@ export async function PUT(req: NextRequest) {
       }
       
       if (role) {
-        finalRoleId = role.id;
+        finalRoleId = role.id ?? null;
         console.log(`✅ Role found: ${roleId} -> ${finalRoleId}`);
       }
     }
