@@ -256,7 +256,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
+//
     try {
       const result = await signIn('credentials', {
         nationalCode,
