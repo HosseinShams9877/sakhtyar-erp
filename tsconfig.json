@@ -13,7 +13,7 @@
     "noImplicitAny": false,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
@@ -34,8 +34,10 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
-, "check-project-member.mjs", "fill-project-member.mjs"  ],
+    ".next/dev/types/**/*.ts",
+    "check-project-member.mjs",
+    "fill-project-member.mjs"
+  ],
   "exclude": [
     "node_modules",
     "skills",

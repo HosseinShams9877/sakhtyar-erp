@@ -32,9 +32,8 @@ function findMatchingApiRoute(pathname: string): string[] | null {
   return match ? API_ROLE_ACCESS[match] : null;
 }
 
-// این قسمت خیلی مهمه - باید تابع با اسم proxy باشه و در مسیر درست
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+    const { pathname } = request.nextUrl;
 
   // مسیرهای عمومی
   if (
@@ -72,3 +71,10 @@ export function proxy(request: NextRequest) {
 
   return NextResponse.next();
 }
+
+// تنظیمات middleware
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};
