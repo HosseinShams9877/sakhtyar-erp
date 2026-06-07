@@ -3,8 +3,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// توجه: Proxy در Next.js 16 همیشه روی Edge Runtime اجرا می‌شود و نیازی به export config ندارد
-
+// ─── نقشه دسترسی API ───
 const API_ROLE_ACCESS: Record<string, string[]> = {
   '/api/projects': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER'],
   '/api/invoices': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER'],
@@ -33,21 +32,18 @@ function findMatchingApiRoute(pathname: string): string[] | null {
   return match ? API_ROLE_ACCESS[match] : null;
 }
 
+// این قسمت خیلی مهمه - باید تابع با اسم proxy باشه و در مسیر درست
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // مسیرهای عمومی و استاتیک
+  // مسیرهای عمومی
   if (
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/session') ||
     pathname === '/api/health' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/uploads') ||
-    pathname === '/logo.svg' ||
-    pathname === '/robots.txt' ||
-    pathname === '/favicon.ico' ||
-    pathname === '/api/settings/public' ||
-    pathname === '/api/docs'
+    pathname === '/favicon.ico'
   ) {
     return NextResponse.next();
   }
@@ -58,12 +54,12 @@ export function proxy(request: NextRequest) {
   }
 
   // مسیرهای API عمومی
-  const publicApiPaths = ['/api/seed', '/api/cron', '/api/csrf-token'];
+  const publicApiPaths = ['/api/seed', '/api/cron', '/api/csrf-token', '/api/settings/public', '/api/docs'];
   if (publicApiPaths.some(path => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  // بررسی RBAC
+  // بررسی دسترسی
   const allowedRoles = findMatchingApiRoute(pathname);
   if (allowedRoles) {
     const response = NextResponse.next();
