@@ -1,17 +1,10 @@
-// ─── پراکسی Next.js 16 با RBAC + ProjectScope ───
-// نسخه Edge برای Cloudflare Workers
+// فایل: proxy.ts (در ریشه پروژه)
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export const config = {
-  runtime: 'edge',
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/auth|api/session).*)',
-  ],
-};
+// توجه: Proxy در Next.js 16 همیشه روی Edge Runtime اجرا می‌شود و نیازی به export config ندارد
 
-// ─── نقشه دسترسی API (بدون تغییر) ───
 const API_ROLE_ACCESS: Record<string, string[]> = {
   '/api/projects': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER'],
   '/api/invoices': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER'],
@@ -40,11 +33,10 @@ function findMatchingApiRoute(pathname: string): string[] | null {
   return match ? API_ROLE_ACCESS[match] : null;
 }
 
-// ✅ این تابع اصلی است که Next.js 16 انتظار دارد (با نام `proxy`)
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // مسیرهای API عمومی و استاتیک
+  // مسیرهای عمومی و استاتیک
   if (
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/session') ||
@@ -60,19 +52,20 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // اگر مسیر API نباشد، عبور کن (فرانت‌اند)
+  // صفحات فرانت‌اند
   if (!pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
-  // اعمال کنترل دسترسی (RBAC)
+  // مسیرهای API عمومی
+  const publicApiPaths = ['/api/seed', '/api/cron', '/api/csrf-token'];
+  if (publicApiPaths.some(path => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
+
+  // بررسی RBAC
   const allowedRoles = findMatchingApiRoute(pathname);
   if (allowedRoles) {
-    // در Edge Runtime، توکن را از کوکی می‌خوانیم
-    const sessionToken = request.cookies.get('next-auth.session-token')?.value ||
-                         request.cookies.get('__Secure-next-auth.session-token')?.value;
-
-    // برای سادگی، فعلاً بدون بررسی نقش اجازه عبور می‌دهیم
     const response = NextResponse.next();
     const activeProjectId = request.cookies.get('activeProjectId')?.value;
     if (activeProjectId) {
