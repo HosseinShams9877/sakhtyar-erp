@@ -7,11 +7,11 @@ import type { NextRequest } from 'next/server';
 export const config = {
   runtime: 'edge',
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/auth|api/session).*)',
   ],
 };
 
-// ─── نقشه دسترسی API بر اساس نقش ───
+// ─── نقشه دسترسی API (بدون تغییر) ───
 const API_ROLE_ACCESS: Record<string, string[]> = {
   '/api/projects': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER'],
   '/api/invoices': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER'],
@@ -40,62 +40,44 @@ function findMatchingApiRoute(pathname: string): string[] | null {
   return match ? API_ROLE_ACCESS[match] : null;
 }
 
-export async function middleware(request: NextRequest) {
+// ✅ این تابع اصلی است که Next.js 16 انتظار دارد (با نام `proxy`)
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ─── مسیرهای بحرانی: عبور فوری ───
+  // مسیرهای API عمومی و استاتیک
   if (
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/session') ||
-    pathname === '/api/health'
-  ) {
-    return NextResponse.next();
-  }
-
-  // فایل‌های استاتیک
-  if (
+    pathname === '/api/health' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/uploads') ||
     pathname === '/logo.svg' ||
     pathname === '/robots.txt' ||
-    pathname === '/favicon.ico'
+    pathname === '/favicon.ico' ||
+    pathname === '/api/settings/public' ||
+    pathname === '/api/docs'
   ) {
     return NextResponse.next();
   }
 
-  // صفحات فرانت‌اند
+  // اگر مسیر API نباشد، عبور کن (فرانت‌اند)
   if (!pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
-  // مسیرهای API عمومی
-  const publicApiPaths = ['/api/seed', '/api/cron', '/api/csrf-token', '/api/settings/public', '/api/docs'];
-  if (publicApiPaths.some(path => pathname.startsWith(path))) {
-    return NextResponse.next();
-  }
-
-  // ─── بررسی RBAC ───
+  // اعمال کنترل دسترسی (RBAC)
   const allowedRoles = findMatchingApiRoute(pathname);
   if (allowedRoles) {
-    // در Edge Runtime، توکن از هدر یا کوکی خوانده میشه
+    // در Edge Runtime، توکن را از کوکی می‌خوانیم
     const sessionToken = request.cookies.get('next-auth.session-token')?.value ||
                          request.cookies.get('__Secure-next-auth.session-token')?.value;
-    
-    // برای بررسی کامل توکن، نیاز به API call هست. فعلاً اجازه میدیم
-    // در نسخه نهایی میتونی از یک API داخلی برای بررسی نقش استفاده کنی
-    
+
+    // برای سادگی، فعلاً بدون بررسی نقش اجازه عبور می‌دهیم
     const response = NextResponse.next();
-    
-    // افزودن هدرهای امنیتی
-    response.headers.set('X-Frame-Options', 'DENY');
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    
     const activeProjectId = request.cookies.get('activeProjectId')?.value;
     if (activeProjectId) {
       response.headers.set('x-active-project', activeProjectId);
     }
-    
     return response;
   }
 
