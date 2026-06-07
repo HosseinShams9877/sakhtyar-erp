@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
         email: email || null,
         password: hashedPassword,
         phone: phone || null,
-        roleId: finalRoleId
+        roleId: finalRoleId!
       },
       select: {
         id: true, name: true, nationalCode: true, mobile: true, email: true, phone: true, avatar: true,
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: user.id,
             projectId: pid,
-            roleId: finalRoleId,  
+            roleId: finalRoleId!,  
           },
         });
         console.log(`✅ ProjectMember: user ${user.id} -> project ${pid}`);
@@ -270,7 +270,7 @@ export async function PUT(req: NextRequest) {
             data: {
               userId: id,
               projectId: pid,
-              roleId: finalRoleId || undefined,
+              roleId: finalRoleId!
             },
           });
           await db.userProject.create({
