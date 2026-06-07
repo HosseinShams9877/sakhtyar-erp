@@ -258,7 +258,7 @@ export async function PUT(req: NextRequest) {
       // پیدا کردن مسئول خرید پروژه
       const purchaser = await db.projectMember.findFirst({
         where: {
-          projectId: existingRequest.projectId,
+          projectId: existingRequest.projectId || undefined,
           role: {
             name: 'PURCHASER'
           }
@@ -278,7 +278,7 @@ export async function PUT(req: NextRequest) {
             message: `درخواست کسری ${existingRequest.materialName} به مقدار ${existingRequest.quantity} ${existingRequest.unit === 'KILOGRAM' ? 'کیلوگرم' : 'عدد'} توسط مدیر پروژه تایید شد.`,
             type: 'success',
             link: `/materials`,
-            projectId: existingRequest.projectId,
+            projectId: existingRequest.projectId || undefined,
           },
         });
         console.log(`✅ نوتیفیکیشن برای مسئول خرید (${purchaser.user.name}) ارسال شد`);
@@ -291,7 +291,7 @@ export async function PUT(req: NextRequest) {
     if (status === 'rejected') {
       const purchaser = await db.projectMember.findFirst({
         where: {
-          projectId: existingRequest.projectId,
+          projectId: existingRequest.projectId || undefined,
           role: {
             name: 'PURCHASER'
           }
@@ -311,7 +311,7 @@ export async function PUT(req: NextRequest) {
             message: `درخواست کسری ${existingRequest.materialName} به مقدار ${existingRequest.quantity} ${existingRequest.unit === 'KILOGRAM' ? 'کیلوگرم' : 'عدد'} توسط مدیر پروژه رد شد.`,
             type: 'error',
             link: `/materials`,
-            projectId: existingRequest.projectId,
+            projectId: existingRequest.projectId || undefined,
           },
         });
       }
