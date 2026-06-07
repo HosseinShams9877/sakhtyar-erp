@@ -256,8 +256,7 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    console.log('📥 [PUT] User updated, new roleId:', user.roleId);
-    console.log('📥 [PUT] User role:', user.role);
+    
 
     // به‌روزرسانی دسترسی پروژه‌ها در هر دو جدول
     if (projectIds !== undefined) {
