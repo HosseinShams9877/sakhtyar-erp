@@ -9,29 +9,32 @@ async function main() {
   // ────────────────────────────────────────────────────────────────────────────
   // 1. Clear existing data (order matters for foreign keys)
   // ────────────────────────────────────────────────────────────────────────────
-  console.log('🗑️  Clearing existing data...');
-  await prisma.reminderLog.deleteMany();
-  await prisma.payment.deleteMany();
-  await prisma.deliveryConfirmation.deleteMany();
-  await prisma.purchaseItem.deleteMany();
-  await prisma.approvalLog.deleteMany();
-  await prisma.workflowConfig.deleteMany();
-  await prisma.customFieldValue.deleteMany();
-  await prisma.customField.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.userProject.deleteMany();
-  await prisma.purchase.deleteMany();
-  await prisma.transaction.deleteMany();
-  await prisma.supplier.deleteMany();
-  await prisma.project.deleteMany();
-  await prisma.rolePermission.deleteMany();
-  await prisma.role.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.alert.deleteMany();
-  await prisma.auditLog.deleteMany();
-  await prisma.systemSetting.deleteMany();
-  await prisma.material.deleteMany();
-  await prisma.materialCategory.deleteMany();
+console.log('🗑️  Clearing existing data...');
+await prisma.reminderLog.deleteMany();
+await prisma.payment.deleteMany();
+await prisma.deliveryConfirmation.deleteMany();
+await prisma.purchaseItem.deleteMany();
+await prisma.approvalLog.deleteMany();
+await prisma.workflowConfig.deleteMany();
+await prisma.customFieldValue.deleteMany();
+await prisma.customField.deleteMany();
+await prisma.notification.deleteMany();
+await prisma.userProject.deleteMany();
+await prisma.projectMember.deleteMany();
+await prisma.shortageRequest.deleteMany();
+await prisma.transaction.deleteMany();
+await prisma.purchase.deleteMany();
+await prisma.material.deleteMany();
+await prisma.materialCategory.deleteMany();
+await prisma.supplierProject.deleteMany();
+await prisma.supplier.deleteMany();
+await prisma.project.deleteMany();
+await prisma.rolePermission.deleteMany();
+await prisma.role.deleteMany();
+await prisma.user.deleteMany();
+await prisma.alert.deleteMany();
+await prisma.auditLog.deleteMany();
+await prisma.systemSetting.deleteMany();
 
  
   // ────────────────────────────────────────────────────────────────────────────
