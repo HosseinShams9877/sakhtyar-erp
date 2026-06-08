@@ -264,7 +264,7 @@ const userRole = (session?.user as any)?.role;
       const [invRes, vndRes, prjRes, matRes] = await Promise.all([
         fetch(url),
         fetch(`/api/vendors?projectId=${projectId}`),
-        fetch('/api/projects'),
+        fetch(`/api/projects?projectId=${projectId}`),
         fetch(`/api/materials?projectId=${projectId}`),
       ]);
       
