@@ -1847,7 +1847,7 @@ const loadMaterials = useCallback(async () => {
 
   // ─── حالت لیست (پیش‌فرض) ───
   return (
-    <div className="space-y-6 p-8">
+    <div className="space-y-6 p-8 sm:p-12">
       {/* هدر */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
