@@ -2,7 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
+import { getToken } from 'next-auth/jwt';
 // ─── نقشه دسترسی API ───
 const API_ROLE_ACCESS: Record<string, string[]> = {
   '/api/projects': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER'],
@@ -32,7 +32,7 @@ function findMatchingApiRoute(pathname: string): string[] | null {
   return match ? API_ROLE_ACCESS[match] : null;
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
   // مسیرهای عمومی
@@ -61,6 +61,12 @@ export function proxy(request: NextRequest) {
   // بررسی دسترسی
   const allowedRoles = findMatchingApiRoute(pathname);
   if (allowedRoles) {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    const userRole = (token?.role as string) || '';
+    
+    if (!token || !allowedRoles.includes(userRole)) {
+      return NextResponse.json({ error: 'دسترسی غیرمجاز' }, { status: 403 });
+    }
     const response = NextResponse.next();
     const activeProjectId = request.cookies.get('activeProjectId')?.value;
     if (activeProjectId) {
