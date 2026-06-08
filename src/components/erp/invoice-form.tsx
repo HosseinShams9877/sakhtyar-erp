@@ -264,7 +264,7 @@ const userRole = (session?.user as any)?.role;
       const [invRes, vndRes, prjRes, matRes] = await Promise.all([
         fetch(url),
         fetch(`/api/vendors?projectId=${projectId}`),
-        fetch(`/api/projects?projectId=${projectId}`),
+        fetch(`/api/projects`),
         fetch(`/api/materials?projectId=${projectId}`),
       ]);
       
@@ -298,7 +298,7 @@ const userRole = (session?.user as any)?.role;
       
       // فیلتر پروژه‌ها برای PURCHASER
       let projectsData: Project[] = Array.isArray(prjData) ? prjData : [];
-      if (userRole === 'PURCHASER' && activeProject?.id) {
+      if ((userRole === 'PURCHASER' || userRole === 'PROJECT_MANAGER') && activeProject?.id) {
         projectsData = projectsData.filter(p => p.id === activeProject.id);
       }
       setProjects(projectsData);
