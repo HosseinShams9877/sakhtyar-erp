@@ -11,9 +11,8 @@ import {
   X,
   Trash2,
   Check,
-  ShoppingCart,ArrowLeft
+  ShoppingCart,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,7 +60,7 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const router = useRouter();
+
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -268,15 +267,6 @@ export default function PurchasesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="md:hidden mb-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="gap-2 text-lg font-medium hover:bg-muted"
-        >
-        <ArrowLeft className="w-6 h-6" />
-       </Button>
-      </div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>

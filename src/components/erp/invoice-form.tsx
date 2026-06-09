@@ -2,6 +2,7 @@
 import { useAuth } from '@/components/auth-provider';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,7 +48,7 @@ import {
 import {
   Plus, Upload, Eye, Search, FileText, X, Image as ImageIcon, Pencil, Trash2,
   CheckCircle2, XCircle, ChevronDown, Paperclip, Truck, Receipt, DollarSign,
-  CalendarDays, CreditCard, Package, Minus, FolderOpen, Download,Check, ChevronsUpDown 
+  CalendarDays, CreditCard, Package, Minus, FolderOpen, Download,Check, ChevronsUpDown ,ArrowLeft
 } from 'lucide-react';
 import ShamsiDatePicker from '@/components/ui/shamsi-date-picker';
 import { toast } from 'sonner';
@@ -191,6 +192,7 @@ const emptyPreviews: FilePreview = {
 export default function InvoiceForm() {
   // Data
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const router = useRouter();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -1500,7 +1502,17 @@ const loadMaterials = useCallback(async () => {
             </div>
           )}
         </div>
-  
+        {searchParams.get('projectId') && (<div className="md:hidden fixed top-4 right-4 z-50">
+           <Button
+             variant="default"
+             size="icon"
+             onClick={() => router.back()}
+             className="w-12 h-12 rounded-2xl shadow-lg bg-white dark:bg-zinc-900 border border-border"
+          >
+          <ArrowLeft className="w-6 h-6" />
+      </Button>
+      </div>)}
+        
         <Separator />
   
         {/* Items table */}

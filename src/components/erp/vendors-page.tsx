@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   Plus, Search, Phone, Mail, Building2, Pencil, Trash2,
-  Smartphone, Landmark, FileText, CreditCard, Receipt, TrendingUp,
+  Smartphone, Landmark, FileText, CreditCard, Receipt, TrendingUp,ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { toPersianDigits, formatCurrency } from '@/lib/rbac';
@@ -61,6 +62,7 @@ const emptyForm = {
 };
 
 export default function VendorsPage() {
+  const router = useRouter()
   const [allProjects, setAllProjects] = useState<{ id: string; name: string }[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const { activeProject } = useProject(); 
@@ -493,6 +495,17 @@ export default function VendorsPage() {
 </Dialog>
         </div>
       </div>
+
+      {searchParams.get('projectId') && (<div className="md:hidden fixed top-4 right-4 z-50">
+           <Button
+             variant="default"
+             size="icon"
+             onClick={() => router.back()}
+             className="w-12 h-12 rounded-2xl shadow-lg bg-white dark:bg-zinc-900 border border-border"
+          >
+          <ArrowLeft className="w-6 h-6" />
+      </Button>
+      </div>)}
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

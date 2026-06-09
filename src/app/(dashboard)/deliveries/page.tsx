@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, PackageCheck, Truck, Eye, ChevronLeft } from 'lucide-react';
+import { Search, PackageCheck, Truck, Eye, ChevronLeft , ArrowLeft} from 'lucide-react';
 import { formatDate, formatCurrencyShort, toPersianDigits } from '@/lib/rbac';
 import Link from 'next/link';
 
@@ -28,6 +29,7 @@ interface Delivery {
 }
 
 export default function DeliveriesPage() {
+  const router = useRouter();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -56,6 +58,16 @@ export default function DeliveriesPage() {
 
   return (
     <div className="space-y-6 p-10">
+      <div className="md:hidden fixed top-4 right-4 z-50">
+  <Button
+    variant="default"
+    size="icon"
+    onClick={() => router.back()}
+    className="w-12 h-12 rounded-2xl shadow-lg bg-white dark:bg-zinc-900 border border-border"
+  >
+    <ArrowLeft className="w-6 h-6" />
+  </Button>
+</div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
