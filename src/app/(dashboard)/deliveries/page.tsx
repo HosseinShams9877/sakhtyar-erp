@@ -58,16 +58,7 @@ export default function DeliveriesPage() {
 
   return (
     <div className="space-y-6 p-10">
-      <div className="md:hidden mb-4">
-  <Button
-    variant="ghost"
-    size="icon"          
-    onClick={() => router.back()}
-    className="w-11 h-11 rounded-xl hover:bg-muted"
-  >
-    <ArrowLeft className="w-7 h-7" />
-  </Button>
-</div>
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -87,6 +78,16 @@ export default function DeliveriesPage() {
           />
         </div>
       </div>
+      <div className="md:hidden mb-4">
+  <Button
+    variant="ghost"
+    size="icon"          
+    onClick={() => router.back()}
+    className="w-11 h-11 rounded-xl hover:bg-muted"
+  >
+    <ArrowLeft className="w-7 h-7" />
+  </Button>
+</div>
 
       {/* Deliveries List */}
       <Card className="border-0 shadow-soft overflow-hidden">
