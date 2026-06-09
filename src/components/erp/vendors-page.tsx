@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter ,useSearchParams  } from 'next/navigation';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +63,7 @@ const emptyForm = {
 
 export default function VendorsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [allProjects, setAllProjects] = useState<{ id: string; name: string }[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const { activeProject } = useProject(); 
