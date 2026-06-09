@@ -498,16 +498,16 @@ export default function VendorsPage() {
       </div>
 
       {searchParams.get('projectId') && (
-     <div className="md:hidden mb-4">
-     <Button
-       variant="ghost"
-       size="icon"           // مهم: size="icon" برای فقط آیکون
-       onClick={() => router.back()}
-       className="w-11 h-11 rounded-xl hover:bg-muted"
-     >
-       <ArrowLeft className="w-7 h-7" />
-     </Button>
-   </div>
+      <div className="md:hidden mb-4">
+      <Button
+        variant="ghost"
+        size="icon"          
+        onClick={() => router.back()}
+        className="w-11 h-11 rounded-xl hover:bg-muted"
+      >
+        <ArrowLeft className="w-7 h-7" />
+      </Button>
+    </div>)}
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
