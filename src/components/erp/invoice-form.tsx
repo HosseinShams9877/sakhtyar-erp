@@ -1859,12 +1859,12 @@ const loadMaterials = useCallback(async () => {
         </div>
         {searchParams.get('projectId') && (<div className="md:hidden fixed top-4 right-4 z-50">
            <Button
-             variant="default"
+             variant="ghost"
              size="icon"
              onClick={() => router.back()}
-             className="w-12 h-12 rounded-2xl shadow-lg bg-white dark:bg-zinc-900 border border-border"
+             className="w-11 h-11 rounded-xl hover:bg-muted"
           >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-7 h-7" />
       </Button>
       </div>)}
         <div className="flex items-center gap-2 w-full sm:w-auto">
