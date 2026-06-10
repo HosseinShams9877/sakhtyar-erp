@@ -147,51 +147,47 @@ export default function AppShell() {
 
       {/* ─── Main content ─── */}
       <main className="flex-1 min-h-screen flex flex-col pb-16 lg:pb-0">
-        {/* ─── Desktop Top Bar ─── */}
-        <header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-border bg-card sticky top-0 z-30 shrink-0">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-foreground">
-              {navItems.find(n => n.id === activePage)?.label || 'داشبورد'}
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Notification Bell */}
-            <NotificationBell />
-            {/* Theme toggle */}
-            <button
-              className="p-2 rounded-lg hover:bg-muted/70 transition-colors"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={theme === 'dark' ? 'حالت روشن' : 'حالت تاریک'}
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4 text-muted-foreground" /> : <Moon className="w-4 h-4 text-muted-foreground" />}
-            </button>
-          </div>
-        </header>
+       {/* ─── Desktop Top Bar ─── */}
+<header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-border bg-card sticky top-0 z-30 shrink-0 min-w-0">
+  <div className="flex items-center gap-3 min-w-0">
+    <h2 className="text-sm font-semibold text-foreground truncate">
+      {navItems.find(n => n.id === activePage)?.label || 'داشبورد'}
+    </h2>
+  </div>
+  <div className="flex items-center gap-2 flex-shrink-0">
+    <NotificationBell />
+    <button
+      className="p-2 rounded-lg hover:bg-muted/70 transition-colors flex-shrink-0"
+      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      title={theme === 'dark' ? 'حالت روشن' : 'حالت تاریک'}
+    >
+      {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+    </button>
+  </div>
+</header>
 
-        {/* ─── Mobile Top Bar ─── */}
-        <header className="lg:hidden h-12 flex items-center gap-2 px-3 border-b border-border bg-card sticky top-0 z-30 shrink-0">
-          <button onClick={() => setSidebarOpen(true)} className="p-1.5 hover:bg-muted rounded-lg">
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md gradient-primary flex items-center justify-center">
-              <HardHat className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="font-bold text-sm">ساخت‌یار</span>
-          </div>
-          {/* Spacer */}
-          <div className="flex-1" />
-          {/* Notification Bell */}
-          <NotificationBell />
-          {/* Mobile theme toggle */}
-          <button
-            className="p-1.5 hover:bg-muted rounded-lg"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-        </header>
-
+{/* ─── Mobile Top Bar ─── */}
+<header className="lg:hidden h-12 flex items-center gap-2 px-3 border-b border-border bg-card sticky top-0 z-30 shrink-0 min-w-0">
+  <button onClick={() => setSidebarOpen(true)} className="p-1.5 hover:bg-muted rounded-lg flex-shrink-0">
+    <Menu className="w-5 h-5" />
+  </button>
+  <div className="flex items-center gap-2 min-w-0">
+    <div className="w-6 h-6 rounded-md gradient-primary flex items-center justify-center flex-shrink-0">
+      <HardHat className="w-3.5 h-3.5 text-white" />
+    </div>
+    <span className="font-bold text-sm truncate">ساخت‌یار</span>
+  </div>
+  <div className="flex-1" />
+  <div className="flex items-center gap-1 flex-shrink-0">
+    <NotificationBell />
+    <button
+      className="p-1.5 hover:bg-muted rounded-lg flex-shrink-0"
+      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+    >
+      {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+    </button>
+  </div>
+</header>
         {/* Page content */}
         <div className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto w-full">
           {renderPage()}
