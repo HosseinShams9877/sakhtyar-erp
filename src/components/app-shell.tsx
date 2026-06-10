@@ -150,11 +150,12 @@ export default function AppShell() {
   {/* ─── Desktop Top Bar ─── */}
   <header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-border bg-card sticky top-0 z-30 w-full">
     <div className="flex items-center gap-3 min-w-0">
-      <div className="overflow-hidden whitespace-nowrap w-[200px] md:w-[300px]">
-        <h2 className="text-sm font-semibold text-foreground inline-block animate-marquee hover:animation-pause">
-          {navItems.find(n => n.id === activePage)?.label || 'داشبورد'}
-        </h2>
-      </div>
+      <h2 
+        className="text-sm font-semibold text-foreground truncate max-w-[200px] md:max-w-[300px]"
+        title={navItems.find(n => n.id === activePage)?.label || 'داشبورد'}
+      >
+        {navItems.find(n => n.id === activePage)?.label || 'داشبورد'}
+      </h2>
     </div>
     <div className="flex items-center gap-2 flex-shrink-0">
       <NotificationBell />
@@ -173,15 +174,16 @@ export default function AppShell() {
     <button onClick={() => setSidebarOpen(true)} className="p-1.5 hover:bg-muted rounded-lg flex-shrink-0">
       <Menu className="w-5 h-5" />
     </button>
-    <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
+    <div className="flex items-center gap-2 flex-1 min-w-0">
       <div className="w-6 h-6 rounded-md gradient-primary flex items-center justify-center flex-shrink-0">
         <HardHat className="w-3.5 h-3.5 text-white" />
       </div>
-      <div className="overflow-hidden whitespace-nowrap w-[100px]">
-        <span className="font-bold text-sm inline-block animate-marquee hover:animation-pause">
-          ساخت‌یار
-        </span>
-      </div>
+      <span 
+        className="font-bold text-sm truncate max-w-[100px]"
+        title="ساخت‌یار"
+      >
+        ساخت‌یار
+      </span>
     </div>
     <div className="flex items-center gap-1 flex-shrink-0">
       <NotificationBell />
