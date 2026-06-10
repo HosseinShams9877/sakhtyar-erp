@@ -170,17 +170,18 @@ export default function AppShell() {
   <button onClick={() => setSidebarOpen(true)} className="p-1.5 hover:bg-muted rounded-lg flex-shrink-0">
     <Menu className="w-5 h-5" />
   </button>
-  <div className="flex items-center gap-2 flex-1 min-w-0 max-w-[100px]">
+  <div className="flex items-center gap-2 flex-shrink-0 w-[100px]">
     <div className="w-6 h-6 rounded-md gradient-primary flex items-center justify-center flex-shrink-0">
       <HardHat className="w-3.5 h-3.5 text-white" />
     </div>
     <span 
-      className="font-bold text-sm whitespace-nowrap overflow-hidden text-ellipsis"
+      className="font-bold text-sm whitespace-nowrap overflow-hidden text-ellipsis flex-1 min-w-0"
       title="ساخت‌یار"
     >
       ساخت‌یار
     </span>
   </div>
+  <div className="flex-1" />
   <div className="flex items-center gap-1 flex-shrink-0">
     <NotificationBell />
     <button
