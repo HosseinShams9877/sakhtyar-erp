@@ -94,20 +94,19 @@ export default function Header({ currentPage, onPageChange, showSidebar = true, 
         )}
 
         {/* لوگو + breadcrumb */}
-        <div className="flex items-center gap-2" dir="rtl">
-          <div className={cn(
-            'w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0',
-            `bg-gradient-to-br ${roleTheme.gradient}`
-          )}>
-            <HardHat className="w-4 h-4 text-white" />
-          </div>
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>ساخت‌یار</span>
-            <span className="text-border">/</span>
-          </div>
-          <ChevronDown className="w-3 h-3 text-muted-foreground" />
-          <h2 className="font-bold text-sm">{currentPageLabel}</h2>
-        </div>
+        <div className="flex items-center gap-2 min-w-0" dir="rtl">
+  <div className={cn('w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0', `bg-gradient-to-br ${roleTheme.gradient}`)}>
+    <HardHat className="w-4 h-4 text-white" />
+  </div>
+  <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0">
+    <span>ساخت‌یار</span>
+    <span className="text-border">/</span>
+  </div>
+  <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+  <h2 className="font-bold text-sm whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+    {currentPageLabel}
+  </h2>
+</div>
       </div>
 
       {/* نوار جستجو — نئومورفیک inset */}
