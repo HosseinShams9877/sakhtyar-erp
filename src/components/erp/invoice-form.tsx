@@ -1502,16 +1502,7 @@ const loadMaterials = useCallback(async () => {
             </div>
           )}
         </div>
-        {searchParams.get('projectId') && (<div className="md:hidden fixed top-4 right-4 z-50">
-           <Button
-             variant="default"
-             size="icon"
-             onClick={() => router.back()}
-             className="w-12 h-12 rounded-2xl shadow-lg bg-white dark:bg-zinc-900 border border-border"
-          >
-          <ArrowLeft className="w-6 h-6" />
-      </Button>
-      </div>)}
+       
         
         <Separator />
   
@@ -1866,6 +1857,16 @@ const loadMaterials = useCallback(async () => {
           <h3 className="text-lg font-extrabold">مدیریت فاکتورها</h3>
           <p className="text-sm text-muted-foreground">ثبت و مشاهده فاکتورهای خرید مصالح</p>
         </div>
+        {searchParams.get('projectId') && (<div className="md:hidden fixed top-4 right-4 z-50">
+           <Button
+             variant="default"
+             size="icon"
+             onClick={() => router.back()}
+             className="w-12 h-12 rounded-2xl shadow-lg bg-white dark:bg-zinc-900 border border-border"
+          >
+          <ArrowLeft className="w-6 h-6" />
+      </Button>
+      </div>)}
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
