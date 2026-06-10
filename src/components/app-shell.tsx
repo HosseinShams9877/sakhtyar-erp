@@ -144,16 +144,12 @@ export default function AppShell() {
           </div>
         </div>
       </aside>
-
 {/* ─── Main content ─── */}
 <main className="flex-1 min-h-screen flex flex-col pb-16 lg:pb-0 overflow-x-hidden">
   {/* ─── Desktop Top Bar ─── */}
-  <header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-border bg-card sticky top-0 z-30 w-full">
-    <div className="flex items-center gap-3 min-w-0">
-      <h2 
-        className="text-sm font-semibold text-foreground truncate max-w-[200px] md:max-w-[300px]"
-        title={navItems.find(n => n.id === activePage)?.label || 'داشبورد'}
-      >
+  <header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-border bg-card sticky top-0 z-30 w-full gap-4">
+    <div className="flex items-center gap-3 min-w-0 flex-1">
+      <h2 className="text-sm font-semibold text-foreground whitespace-nowrap overflow-hidden text-ellipsis">
         {navItems.find(n => n.id === activePage)?.label || 'داشبورد'}
       </h2>
     </div>
@@ -178,10 +174,7 @@ export default function AppShell() {
       <div className="w-6 h-6 rounded-md gradient-primary flex items-center justify-center flex-shrink-0">
         <HardHat className="w-3.5 h-3.5 text-white" />
       </div>
-      <span 
-        className="font-bold text-sm truncate max-w-[100px]"
-        title="ساخت‌یار"
-      >
+      <span className="font-bold text-sm whitespace-nowrap overflow-hidden text-ellipsis">
         ساخت‌یار
       </span>
     </div>
