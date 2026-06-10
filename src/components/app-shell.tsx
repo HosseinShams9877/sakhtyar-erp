@@ -146,7 +146,7 @@ export default function AppShell() {
       </aside>
 
       {/* ─── Main content ─── */}
-      <main className="flex-1 min-h-screen flex flex-col pb-16 lg:pb-0">
+      <main className="flex-1 min-h-screen flex flex-col pb-16 lg:pb-0 overflow-x-hidden">
        {/* ─── Desktop Top Bar ─── */}
 <header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-border bg-card sticky top-0 z-30 shrink-0 min-w-0">
   <div className="flex items-center gap-3 min-w-0">
@@ -189,7 +189,7 @@ export default function AppShell() {
   </div>
 </header>
         {/* Page content */}
-        <div className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto w-full">
+        <div className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto w-full overflow-x-auto">
           {renderPage()}
         </div>
       </main>

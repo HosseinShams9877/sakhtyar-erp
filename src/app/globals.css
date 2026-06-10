@@ -143,6 +143,20 @@ main > div {
   margin-left: auto !important;
   margin-right: auto !important;
 }
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+  position: relative;
+}
+* {
+  overflow-x: visible;
+  max-width: 100%;
+}
+.overflow-x-auto {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
