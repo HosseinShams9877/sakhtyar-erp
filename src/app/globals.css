@@ -146,12 +146,8 @@ main > div {
 html, body {
   overflow-x: hidden;
   max-width: 100%;
-  position: relative;
 }
-* {
-  overflow-x: visible;
-  max-width: 100%;
-}
+
 .overflow-x-auto {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
