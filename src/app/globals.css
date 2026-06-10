@@ -591,6 +591,9 @@ html, body {
   display: inline-block;
   padding-right: 100%;
 }
+.hover\:animation-pause:hover {
+  animation-play-state: paused;
+}
 
 /* برای وقتی که متن کوتاهه، حرکت نکنه */
 .animate-marquee:hover {

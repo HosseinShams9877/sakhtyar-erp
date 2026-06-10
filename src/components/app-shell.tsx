@@ -145,14 +145,16 @@ export default function AppShell() {
         </div>
       </aside>
 
-    {/* ─── Main content ─── */}
-<main className="flex-1 min-h-screen flex flex-col pb-16 lg:pb-0">
+{/* ─── Main content ─── */}
+<main className="flex-1 min-h-screen flex flex-col pb-16 lg:pb-0 overflow-x-hidden">
   {/* ─── Desktop Top Bar ─── */}
-  <header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-border bg-card sticky top-0 z-30 shrink-0 w-full">
-    <div className="flex items-center gap-3">
-      <h2 className="text-sm font-semibold text-foreground truncate max-w-[200px] md:max-w-[300px]">
-        {navItems.find(n => n.id === activePage)?.label || 'داشبورد'}
-      </h2>
+  <header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-border bg-card sticky top-0 z-30 w-full">
+    <div className="flex items-center gap-3 min-w-0">
+      <div className="overflow-hidden whitespace-nowrap w-[200px] md:w-[300px]">
+        <h2 className="text-sm font-semibold text-foreground inline-block animate-marquee hover:animation-pause">
+          {navItems.find(n => n.id === activePage)?.label || 'داشبورد'}
+        </h2>
+      </div>
     </div>
     <div className="flex items-center gap-2 flex-shrink-0">
       <NotificationBell />
@@ -172,15 +174,15 @@ export default function AppShell() {
       <Menu className="w-5 h-5" />
     </button>
     <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
-  <div className="w-6 h-6 rounded-md gradient-primary flex items-center justify-center flex-shrink-0">
-    <HardHat className="w-3.5 h-3.5 text-white" />
-  </div>
-  <div className="overflow-hidden whitespace-nowrap max-w-[120px]">
-    <span className="font-bold text-sm animate-marquee inline-block">
-      ساخت‌یار
-    </span>
-  </div>
-</div>
+      <div className="w-6 h-6 rounded-md gradient-primary flex items-center justify-center flex-shrink-0">
+        <HardHat className="w-3.5 h-3.5 text-white" />
+      </div>
+      <div className="overflow-hidden whitespace-nowrap w-[100px]">
+        <span className="font-bold text-sm inline-block animate-marquee hover:animation-pause">
+          ساخت‌یار
+        </span>
+      </div>
+    </div>
     <div className="flex items-center gap-1 flex-shrink-0">
       <NotificationBell />
       <button
@@ -199,7 +201,6 @@ export default function AppShell() {
     </div>
   </div>
 </main>
-
       {/* ─── Mobile Bottom Navigation Bar ─── */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-card border-t border-border mobile-bottom-nav">
         <div className="flex items-center justify-around h-14">
