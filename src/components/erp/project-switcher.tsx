@@ -37,17 +37,17 @@ export default function ProjectSwitcher() {
         <Button
           variant="ghost"
           className={cn(
-            'gap-2 h-9 rounded-xl px-3 text-xs font-medium hover:bg-muted transition-colors',
-            'border border-border/40'
+            'gap-1.5 sm:gap-2 h-9 rounded-xl px-2 sm:px-3 text-xs font-medium hover:bg-muted transition-colors',
+            'border border-border/40 w-[140px] sm:w-auto'
           )}
           dir="rtl"
         >
           <FolderKanban className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-          <div className="flex flex-col items-start min-w-0">
-            <span className="text-[11px] font-bold truncate max-w-[120px]">
+          <div className="flex flex-col items-start min-w-0 flex-1">
+            <span className="text-[11px] font-bold truncate w-full">
               {activeProject?.name || 'همه پروژه‌ها'}
             </span>
-            <span className="text-[9px] text-muted-foreground truncate max-w-[120px]">
+            <span className="text-[9px] text-muted-foreground truncate w-full">
               {isGlobalRole && !activeProject ? 'نمای کلی سامانه' : activeRoleLabel}
             </span>
           </div>
@@ -117,7 +117,7 @@ export default function ProjectSwitcher() {
                 <div className={cn('w-2 h-2 rounded-full flex-shrink-0', statusColor)} />
                 <div className="flex-1 min-w-0 text-right">
                   <p className="truncate font-medium">{project.name}</p>
-                  <p className="text-[9px] text-muted-foreground">{project.code}</p>
+                  <p className="text-[9px] text-muted-foreground truncate">{project.code}</p>
                 </div>
                 {isActive && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
               </button>
