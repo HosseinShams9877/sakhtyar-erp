@@ -73,7 +73,7 @@ export default function BottomNav({ role, activePage, onPageChange , onShortageC
 
   return (
     <motion.nav
-      className="sticky bottom-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border/50 mobile-bottom-nav lg:hidden"
+      className="fixed bottom-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border/50 mobile-bottom-nav lg:hidden"
       initial={{ y: 80 }}
       animate={{ y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
