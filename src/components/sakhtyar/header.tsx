@@ -112,7 +112,7 @@ export default function Header({ currentPage, onPageChange, showSidebar = true, 
         )}
 
         {/* لوگو + breadcrumb */}
-<div className="flex items-center gap-2 min-w-0 max-w-[120px]" dir="rtl">
+<div className="flex items-center gap-2 min-w-0 flex-1" dir="rtl">
   <div className={cn('w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0', `bg-gradient-to-br ${roleTheme.gradient}`)}>
     <HardHat className="w-4 h-4 text-white" />
   </div>
@@ -121,7 +121,7 @@ export default function Header({ currentPage, onPageChange, showSidebar = true, 
     <span className="text-border">/</span>
   </div>
   <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-  <h2 className="font-bold text-sm whitespace-nowrap overflow-hidden text-ellipsis min-w-0 flex-1">
+  <h2 className="font-bold text-sm truncate max-w-[100px] sm:max-w-none">
     {currentPageLabel}
   </h2>
 </div>
