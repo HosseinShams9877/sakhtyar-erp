@@ -1853,42 +1853,49 @@ const loadMaterials = useCallback(async () => {
     <div className="space-y-6 p-8 sm:p-12">
       {/* هدر */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-extrabold">مدیریت فاکتورها</h3>
-          <p className="text-sm text-muted-foreground">ثبت و مشاهده فاکتورهای خرید مصالح</p>
-        </div>
-        {searchParams.get('projectId') && (<div className="md:hidden fixed top-4 right-4 z-50">
-           <Button
-             variant="ghost"
-             size="icon"
-             onClick={() => router.back()}
-             className="w-11 h-11 rounded-xl hover:bg-muted"
-          >
-          <ArrowLeft className="w-7 h-7" />
-      </Button>
-      </div>)}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="جستجوی شماره فاکتور..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pr-9 input-modern rounded-xl"
-            />
-          </div>
-          <Button
-            className="gap-2 gradient-primary hover:opacity-90 transition-opacity shadow-soft rounded-xl"
-            onClick={() => {
-              resetForm();
-              setViewMode('create');
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">فاکتور جدید</span>
-          </Button>
-        </div>
+  <div className="relative">
+    {/* دکمه برگشت برای موبایل - طراحی شده */}
+    {searchParams.get('projectId') && (
+      <div className="absolute -top-2 -right-2 sm:hidden">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => router.back()}
+          className="gap-1.5 bg-background/95 backdrop-blur-sm border-2 shadow-md rounded-full px-3 py-1.5 text-sm font-medium hover:bg-muted transition-all duration-200"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>بازگشت</span>
+        </Button>
       </div>
+    )}
+    <h3 className={`text-lg font-extrabold ${searchParams.get('projectId') ? 'pr-16 sm:pr-0' : ''}`}>
+      مدیریت فاکتورها
+    </h3>
+    <p className="text-sm text-muted-foreground">ثبت و مشاهده فاکتورهای خرید مصالح</p>
+  </div>
+
+  <div className="flex items-center gap-2 w-full sm:w-auto">
+    <div className="relative flex-1 sm:w-64">
+      <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <Input
+        placeholder="جستجوی شماره فاکتور..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="pr-9 input-modern rounded-xl"
+      />
+    </div>
+    <Button
+      className="gap-2 gradient-primary hover:opacity-90 transition-opacity shadow-soft rounded-xl"
+      onClick={() => {
+        resetForm();
+        setViewMode('create');
+      }}
+    >
+      <Plus className="w-4 h-4" />
+      <span className="hidden sm:inline">فاکتور جدید</span>
+    </Button>
+  </div>
+</div>
 
       {/* جدول فاکتورها */}
       <Card className="border-0 shadow-soft overflow-hidden">
