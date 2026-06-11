@@ -155,7 +155,7 @@ type AlertLevel = 'red' | 'orange' | 'yellow' | 'green';
         }
       }
       loadData();
-    }, [activeProject?.id ,projectLoading]); 
+    }, [activeProject?.id ,projectLoading , isGlobalRole]); 
   
     return { data, loading };
   }
@@ -308,7 +308,16 @@ function UrgentPurchaseItem({ purchase, level }: { purchase: PurchaseItem; level
    دید کامل مالی/مدیریتی: بدهی، سررسید، هشدار، تامین‌کنندگان طلبکار
    ═══════════════════════════════════════════════════════════════════════════ */
 export function SuperManagerDashboard() {
+  const { setActiveProject, activeRole } = useProject();
   const { data, loading } = useDashboardData();
+  const [hasReset, setHasReset] = useState(false);
+
+  useEffect(() => {
+    if (!hasReset && (activeRole === 'SUPER_MANAGER' || activeRole === 'ADMIN')) {
+      setActiveProject(null);
+      setHasReset(true);
+    }
+  }, [activeRole, setActiveProject, hasReset]);
 
   if (loading) return <DashboardSkeleton cards={4} />;
   if (!data) return <ErrorState />;
