@@ -1681,7 +1681,6 @@ const fileToBase64 = (file: File): Promise<string> => {
         </div>
 
         {/* کالاها و خدمات */}
-          {/* کالاها و خدمات */}
 <div>
   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
     کالاها و خدمات <span className="text-red-500">*</span>
@@ -1904,7 +1903,6 @@ const fileToBase64 = (file: File): Promise<string> => {
     </div>
   </div>
 </div>
-
 
         {/* تاریخ سررسید */}
         <div>
