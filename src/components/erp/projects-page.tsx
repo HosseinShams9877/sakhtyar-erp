@@ -51,15 +51,20 @@ export default function ProjectsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
-  const loadData = useCallback(async () => {
+  const loadData = async () => {
     try {
-      const prjRes = await fetch(`/api/projects?search=${search}&status=${statusFilter}`);
+      const statusParam = statusFilter && statusFilter !== 'all' ? `&status=${statusFilter}` : '';
+      const prjRes = await fetch(`/api/projects?search=${search}${statusParam}`);
       const prjData = await prjRes.json();
       setProjects(Array.isArray(prjData) ? prjData : (prjData?.projects || []));
     } catch { } finally { setLoading(false); }
+  };
+  
+  useEffect(() => {
+    loadData();
   }, [search, statusFilter]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData , statusFilter]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
