@@ -933,7 +933,7 @@ const loadMaterials = useCallback(async () => {
   // ─── Invoice Form Renderer ───
 
   const renderInvoiceForm = (isEdit: boolean = false) => (
-    <form onSubmit={isEdit ? handleEditSubmit : handleCreate} className="space-y-6 mt-4">
+    <form onSubmit={isEdit ? handleEditSubmit : handleCreate} className="space-y-6 mt-4 mb-20 sm:mb-0">
       {/* بخش اطلاعات اولیه */}
       <div>
         <h4 className="text-sm font-bold text-primary mb-3 flex items-center gap-2">
@@ -1368,7 +1368,7 @@ const loadMaterials = useCallback(async () => {
       <Separator />
 
       {/* Action Buttons */}
-      <div className="flex gap-3 justify-end pt-2">
+      <div className="flex gap-3 justify-end pt-2 ">
         <Button
           type="button"
           variant="outline"
