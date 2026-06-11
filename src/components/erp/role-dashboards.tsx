@@ -1680,113 +1680,225 @@ const fileToBase64 = (file: File): Promise<string> => {
           </select>
         </div>
 
-        {/* کالاها و خدمات */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-            کالاها و خدمات <span className="text-red-500">*</span>
-          </label>
-          <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto max-h-48 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
-                  <tr>
-                    <th className="px-2 py-1.5 text-right text-[10px] font-semibold">نام کالا</th>
-                    <th className="px-2 py-1.5 text-right text-[10px] font-semibold">واحد</th>
-                    <th className="px-2 py-1.5 text-center text-[10px] font-semibold">تعداد</th>
-                    <th className="px-2 py-1.5 text-center text-[10px] font-semibold">قیمت واحد</th>
-                    <th className="px-2 py-1.5 text-center text-[10px] font-semibold">مبلغ</th>
-                    <th className="px-2 py-1.5 w-6"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((row) => (
-                    <tr key={row._key} className="border-t border-gray-100 dark:border-gray-800">
-                      <td className="px-2 py-1.5 min-w-[150px]">
-                        <Popover open={openPopover[row._key]} onOpenChange={(open) => setOpenPopover(prev => ({ ...prev, [row._key]: open }))}>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" role="combobox" className="w-full justify-between h-7 text-[10px]">
-                              {row.materialId ? materials.find(m => m.id === row.materialId)?.name : "انتخاب کالا..."}
-                              <ChevronsUpDown className="mr-1 h-2.5 w-2.5 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[250px] p-0">
-                            <Command>
-                              <CommandInput placeholder="جستجوی کالا..." className="h-7 text-xs" />
-                              <CommandList>
-                                <CommandEmpty>کالایی یافت نشد</CommandEmpty>
-                                <CommandGroup>
-                                  {materials.map((material) => (
-                                    <CommandItem
-                                      key={material.id}
-                                      value={material.name}
-                                      onSelect={() => selectMaterial(row._key, material)}
-                                      className="flex justify-between text-xs"
-                                    >
-                                      <span>{material.name}</span>
-                                      <span className="text-[9px] text-gray-400">{UNIT_LABELS?.[material.unit] || material.unit}</span>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                       </td>
-                      <td className="px-2 py-1.5">
-                        <select
-                          value={row.unit}
-                          onChange={(e) => updateItem(row._key, 'unit', e.target.value)}
-                          className="w-full h-7 text-[10px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
-                        >
-                          <option value="KILOGRAM">کیلوگرم</option>
-                          <option value="METRE">متر</option>
-                          <option value="PIECE">عدد</option>
-                          <option value="TON">تن</option>
-                        </select>
-                       </td>
-                      <td className="px-2 py-1.5">
-                        <input
-                          type="number"
-                          value={row.quantity || ''}
-                          onChange={(e) => updateItem(row._key, 'quantity', parseFloat(e.target.value) || 0)}
-                          className="w-full h-7 text-center text-[10px] rounded-lg border border-gray-200 dark:border-gray-700"
-                          dir="ltr"
-                        />
-                       </td>
-                      <td className="px-2 py-1.5">
-                        <input
-                          type="number"
-                          value={row.unitPrice || ''}
-                          onChange={(e) => updateItem(row._key, 'unitPrice', parseFloat(e.target.value) || 0)}
-                          className="w-full h-7 text-center text-[10px] rounded-lg border border-gray-200 dark:border-gray-700"
-                          dir="ltr"
-                        />
-                       </td>
-                      <td className="px-2 py-1.5 text-center text-[10px] font-medium">
-                        {toPersianDigits(row.totalPrice.toLocaleString())}
-                       </td>
-                      <td className="px-2 py-1.5 text-center">
-                        <button
-                          type="button"
-                          onClick={() => removeItemRow(row._key)}
-                          className="p-0.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* کالاها و خدمات */}
+<div className="mt-4">
+  <label className="flex items-center gap-1 text-sm font-bold text-gray-800 dark:text-gray-200 mb-3">
+    <Package className="w-4 h-4 text-emerald-500" />
+    کالاها و خدمات
+    <span className="text-red-500 text-xs mr-1">*</span>
+  </label>
+  
+  <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+    {/* هدر جدول - فقط در دسکتاپ */}
+    <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-800/30 border-b border-gray-200 dark:border-gray-700 text-[11px] font-bold text-gray-600 dark:text-gray-400">
+      <div className="col-span-4 text-right">نام کالا</div>
+      <div className="col-span-2 text-right">واحد</div>
+      <div className="col-span-2 text-center">تعداد</div>
+      <div className="col-span-2 text-center">قیمت واحد (ریال)</div>
+      <div className="col-span-1 text-center">مبلغ (ریال)</div>
+      <div className="col-span-1 text-center">عملیات</div>
+    </div>
+
+    {/* لیست آیتم‌ها */}
+    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+      {items.map((row) => (
+        <div key={row._key} className="p-4 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
+          {/* طراحی موبایل (ستونی) */}
+          <div className="block md:hidden space-y-3">
+            {/* نام کالا */}
+            <div>
+              <div className="text-[10px] text-gray-400 mb-1">نام کالا</div>
+              <Popover open={openPopover[row._key]} onOpenChange={(open) => setOpenPopover(prev => ({ ...prev, [row._key]: open }))}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between h-11 text-sm rounded-xl border-gray-200 dark:border-gray-700">
+                    {row.materialId ? materials.find(m => m.id === row.materialId)?.name || "انتخاب کالا..." : "انتخاب کالا..."}
+                    <ChevronsUpDown className="mr-1 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[280px] p-0">
+                  <Command>
+                    <CommandInput placeholder="جستجوی کالا..." className="h-10 text-sm" />
+                    <CommandList>
+                      <CommandEmpty>کالایی یافت نشد</CommandEmpty>
+                      <CommandGroup>
+                        {materials.map((material) => (
+                          <CommandItem
+                            key={material.id}
+                            value={material.name}
+                            onSelect={() => selectMaterial(row._key, material)}
+                            className="flex justify-between cursor-pointer py-2"
+                          >
+                            <span className="text-sm">{material.name}</span>
+                            <span className="text-[10px] text-gray-400">{UNIT_LABELS?.[material.unit] || material.unit}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
-            <div className="p-2 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/30">
-              <button type="button" onClick={addItemRow} className="flex items-center gap-0.5 text-[10px] text-blue-600 hover:text-blue-700">
-                <Plus className="w-3 h-3" /> افزودن ردیف
+
+            {/* واحد و تعداد */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-[10px] text-gray-400 mb-1">واحد</div>
+                <select
+                  value={row.unit}
+                  onChange={(e) => updateItem(row._key, 'unit', e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900 transition-all"
+                >
+                  <option value="KILOGRAM">کیلوگرم</option>
+                  <option value="METRE">متر</option>
+                  <option value="PIECE">عدد</option>
+                  <option value="TON">تن</option>
+                </select>
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-400 mb-1">تعداد</div>
+                <input
+                  type="number"
+                  value={row.quantity || ''}
+                  onChange={(e) => updateItem(row._key, 'quantity', parseFloat(e.target.value) || 0)}
+                  className="w-full h-11 px-3 text-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900 transition-all"
+                  dir="ltr"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {/* قیمت واحد و مبلغ */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-[10px] text-gray-400 mb-1">قیمت واحد (ریال)</div>
+                <input
+                  type="number"
+                  value={row.unitPrice || ''}
+                  onChange={(e) => updateItem(row._key, 'unitPrice', parseFloat(e.target.value) || 0)}
+                  className="w-full h-11 px-3 text-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900 transition-all"
+                  dir="ltr"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-400 mb-1">مبلغ (ریال)</div>
+                <div className="w-full h-11 px-3 flex items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-sm font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  {toPersianDigits(row.totalPrice.toLocaleString())}
+                </div>
+              </div>
+            </div>
+
+            {/* دکمه حذف - موبایل */}
+            <button
+              type="button"
+              onClick={() => removeItemRow(row._key)}
+              className="w-full py-2 rounded-xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+            >
+              <Minus className="w-4 h-4" />
+              حذف ردیف
+            </button>
+          </div>
+
+          {/* طراحی دسکتاپ (جدولی) */}
+          <div className="hidden md:grid grid-cols-12 gap-2 items-center">
+            <div className="col-span-4">
+              <Popover open={openPopover[row._key]} onOpenChange={(open) => setOpenPopover(prev => ({ ...prev, [row._key]: open }))}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between h-9 text-sm rounded-lg border-gray-200 dark:border-gray-700">
+                    {row.materialId ? materials.find(m => m.id === row.materialId)?.name || "انتخاب کالا..." : "انتخاب کالا..."}
+                    <ChevronsUpDown className="mr-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[250px] p-0">
+                  <Command>
+                    <CommandInput placeholder="جستجوی کالا..." className="h-9 text-xs" />
+                    <CommandList>
+                      <CommandEmpty>کالایی یافت نشد</CommandEmpty>
+                      <CommandGroup>
+                        {materials.map((material) => (
+                          <CommandItem
+                            key={material.id}
+                            value={material.name}
+                            onSelect={() => selectMaterial(row._key, material)}
+                            className="flex justify-between text-xs cursor-pointer"
+                          >
+                            <span>{material.name}</span>
+                            <span className="text-[9px] text-gray-400">{UNIT_LABELS?.[material.unit] || material.unit}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="col-span-2">
+              <select
+                value={row.unit}
+                onChange={(e) => updateItem(row._key, 'unit', e.target.value)}
+                className="w-full h-9 px-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+              >
+                <option value="KILOGRAM">کیلوگرم</option>
+                <option value="METRE">متر</option>
+                <option value="PIECE">عدد</option>
+                <option value="TON">تن</option>
+              </select>
+            </div>
+            <div className="col-span-2">
+              <input
+                type="number"
+                value={row.quantity || ''}
+                onChange={(e) => updateItem(row._key, 'quantity', parseFloat(e.target.value) || 0)}
+                className="w-full h-9 text-center text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                dir="ltr"
+              />
+            </div>
+            <div className="col-span-2">
+              <input
+                type="number"
+                value={row.unitPrice || ''}
+                onChange={(e) => updateItem(row._key, 'unitPrice', parseFloat(e.target.value) || 0)}
+                className="w-full h-9 text-center text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                dir="ltr"
+              />
+            </div>
+            <div className="col-span-1 text-center font-mono text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              {toPersianDigits(row.totalPrice.toLocaleString())}
+            </div>
+            <div className="col-span-1 text-center">
+              <button
+                type="button"
+                onClick={() => removeItemRow(row._key)}
+                className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <Minus className="w-4 h-4" />
               </button>
-              <span className="text-xs font-bold">{formatCurrency(itemsTotal)}</span>
             </div>
           </div>
         </div>
+      ))}
+    </div>
+
+    {/* دکمه افزودن ردیف و جمع کل */}
+    <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/30 dark:to-gray-800/20 border-t border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-center justify-between gap-3">
+      <button
+        type="button"
+        onClick={addItemRow}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-sm font-bold hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all w-full md:w-auto justify-center"
+      >
+        <Plus className="w-4 h-4" />
+        افزودن ردیف جدید
+      </button>
+      
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">جمع کل:</span>
+        <div className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-base shadow-md">
+          {formatCurrency(itemsTotal)}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
         {/* تاریخ سررسید */}
         <div>
