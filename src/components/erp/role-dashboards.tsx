@@ -1866,14 +1866,15 @@ const fileToBase64 = (file: File): Promise<string> => {
     </div>
   )}
 </div>
-
 {/* دیالوگ دوربین */}
 <Dialog open={cameraDialogOpen} onOpenChange={setCameraDialogOpen}>
   <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden" dir="rtl">
     <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4">
-      <DialogTitle className="text-white text-center text-base">
-        ثبت تصویر فاکتور
-      </DialogTitle>
+      <DialogHeader>
+        <DialogTitle className="text-white text-center text-base">
+          ثبت تصویر فاکتور
+        </DialogTitle>
+      </DialogHeader>
     </div>
     <div className="p-5 text-center">
       <div className="w-32 h-32 mx-auto mb-4 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
@@ -1888,8 +1889,10 @@ const fileToBase64 = (file: File): Promise<string> => {
             input.capture = 'environment';
             input.onchange = (e) => {
               const file = (e.target as HTMLInputElement).files?.[0];
-              if (file) handleQuickImageSelect(file);
-              setCameraDialogOpen(false);
+              if (file) {
+                handleQuickImageSelect(file);
+                setCameraDialogOpen(false);
+              }
             };
             input.click();
           }}
@@ -1905,8 +1908,10 @@ const fileToBase64 = (file: File): Promise<string> => {
             input.accept = 'image/*';
             input.onchange = (e) => {
               const file = (e.target as HTMLInputElement).files?.[0];
-              if (file) handleQuickImageSelect(file);
-              setCameraDialogOpen(false);
+              if (file) {
+                handleQuickImageSelect(file);
+                setCameraDialogOpen(false);
+              }
             };
             input.click();
           }}
