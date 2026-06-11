@@ -1851,49 +1851,50 @@ const loadMaterials = useCallback(async () => {
   // ─── حالت لیست (پیش‌فرض) ───
   return (
     <div className="space-y-6 p-8 sm:p-12">
-      {/* هدر */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-  <div className="flex items-center gap-3">
-    {/* دکمه برگشت - فقط در موبایل و کنار عنوان */}
-    {searchParams.get('projectId') && (
+      
+       {searchParams.get('projectId') && (
+    <div className="block sm:hidden">
       <Button
         variant="ghost"
-        size="icon"
+        size="sm"
         onClick={() => router.back()}
-        className="shrink-0 sm:hidden h-9 w-9 rounded-full border shadow-sm"
+        className="gap-2 px-2 -ml-2 text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="w-4 h-4" />
+        <span>بازگشت</span>
       </Button>
-    )}
+    </div>
+  )}
+
+  {/* هدر اصلی (بدون دکمه) */}
+  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
     <div>
       <h3 className="text-lg font-extrabold">مدیریت فاکتورها</h3>
       <p className="text-sm text-muted-foreground">ثبت و مشاهده فاکتورهای خرید مصالح</p>
     </div>
-  </div>
 
-  <div className="flex items-center gap-2 w-full sm:w-auto">
-    <div className="relative flex-1 sm:w-64">
-      <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-      <Input
-        placeholder="جستجوی شماره فاکتور..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="pr-9 input-modern rounded-xl"
-      />
+    <div className="flex items-center gap-2 w-full sm:w-auto">
+      <div className="relative flex-1 sm:w-64">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="جستجوی شماره فاکتور..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pr-9 input-modern rounded-xl"
+        />
+      </div>
+      <Button
+        className="gap-2 gradient-primary hover:opacity-90 transition-opacity shadow-soft rounded-xl"
+        onClick={() => {
+          resetForm();
+          setViewMode('create');
+        }}
+      >
+        <Plus className="w-4 h-4" />
+        <span className="hidden sm:inline">فاکتور جدید</span>
+      </Button>
     </div>
-    <Button
-      className="gap-2 gradient-primary hover:opacity-90 transition-opacity shadow-soft rounded-xl"
-      onClick={() => {
-        resetForm();
-        setViewMode('create');
-      }}
-    >
-      <Plus className="w-4 h-4" />
-      <span className="hidden sm:inline">فاکتور جدید</span>
-    </Button>
   </div>
-</div>
-
       {/* جدول فاکتورها */}
       <Card className="border-0 shadow-soft overflow-hidden">
         <CardContent className="p-0">

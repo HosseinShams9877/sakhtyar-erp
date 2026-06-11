@@ -1681,6 +1681,7 @@ const fileToBase64 = (file: File): Promise<string> => {
         </div>
 
         {/* کالاها و خدمات */}
+          {/* کالاها و خدمات */}
 <div>
   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
     کالاها و خدمات <span className="text-red-500">*</span>
@@ -1904,6 +1905,7 @@ const fileToBase64 = (file: File): Promise<string> => {
   </div>
 </div>
 
+
         {/* تاریخ سررسید */}
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
@@ -1943,52 +1945,12 @@ const fileToBase64 = (file: File): Promise<string> => {
             </p>
           )}
         </div>
-{/* آپلود تصویر فاکتور */}
+   {/* آپلود تصویر فاکتور */}
 <div>
   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
     تصویر فاکتور
   </label>
-  
-  {/* دکمه‌های دوربین و آپلود فایل */}
-  <div className="flex gap-2 mb-2">
-    <button
-      type="button"
-      onClick={() => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.capture = 'environment'; // دوربین عقب
-        input.onchange = (e) => {
-          const file = (e.target as HTMLInputElement).files?.[0];
-          if (file) handleQuickImageSelect(file);
-        };
-        input.click();
-      }}
-      className="flex-1 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold flex items-center justify-center gap-2"
-    >
-      <Camera className="w-4 h-4" /> دوربین
-    </button>
-    
-    <button
-      type="button"
-      onClick={() => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = (e) => {
-          const file = (e.target as HTMLInputElement).files?.[0];
-          if (file) handleQuickImageSelect(file);
-        };
-        input.click();
-      }}
-      className="flex-1 py-2 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-bold flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-    >
-      <Upload className="w-4 h-4" /> آپلود فایل
-    </button>
-  </div>
-
-  {/* باکس پیش‌نمایش (همون قبلی) */}
-  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center bg-gray-50 dark:bg-gray-800/30">
+  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center hover:border-blue-500 transition-all cursor-pointer bg-gray-50 dark:bg-gray-800/30">
     {quickFormData.imagePreview ? (
       <div className="relative inline-block">
         <img
@@ -2005,17 +1967,26 @@ const fileToBase64 = (file: File): Promise<string> => {
         </button>
       </div>
     ) : (
-      <div className="py-3">
+      <label className="cursor-pointer block py-3">
         <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-2">
           <Camera className="w-5 h-5 text-blue-600 dark:text-blue-400" />
         </div>
         <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
-          از دکمه‌های بالا برای ثبت تصویر استفاده کنید
+          کلیک برای آپلود تصویر
         </p>
         <p className="text-[9px] text-muted-foreground mt-1">
           فرمت‌های مجاز: JPG, PNG | حداکثر ۵ مگابایت
         </p>
-      </div>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleQuickImageSelect(file);
+          }}
+          className="hidden"
+        />
+      </label>
     )}
   </div>
 </div>
