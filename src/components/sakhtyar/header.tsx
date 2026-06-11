@@ -121,7 +121,7 @@ export default function Header({ currentPage, onPageChange, showSidebar = true, 
     <span className="text-border">/</span>
   </div>
   <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-  <h2 className="font-bold text-sm truncate max-w-[100px] sm:max-w-none">
+  <h2 className="font-bold text-sm hidden sm:block">
     {currentPageLabel}
   </h2>
 </div>
