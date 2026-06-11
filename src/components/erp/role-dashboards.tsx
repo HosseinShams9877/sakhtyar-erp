@@ -315,7 +315,7 @@ export function SuperManagerDashboard() {
   useEffect(() => {
     if (!hasReset && (activeRole === 'SUPER_MANAGER' || activeRole === 'ADMIN')) {
       setActiveProject(null);
-      setHasReset(true);
+      setHasReset(true)
     }
   }, [activeRole, setActiveProject, hasReset]);
 
