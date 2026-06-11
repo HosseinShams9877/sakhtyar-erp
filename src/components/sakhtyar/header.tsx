@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React , { useState, useRef, useEffect }from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth-provider';
 import { useProject } from '@/components/project-context';
@@ -41,6 +41,8 @@ interface HeaderProps {
 
 export default function Header({ currentPage, onPageChange, showSidebar = true, sidebarGradient }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
   const { session } = useAuth();
   const { activeRole } = useProject();
   const globalRole = (session?.user as any)?.role as string || 'WAREHOUSE_KEEPER';
@@ -48,6 +50,22 @@ export default function Header({ currentPage, onPageChange, showSidebar = true, 
   const userName = session?.user?.name || 'کاربر';
   const roleTheme = ROLE_THEME[role] || ROLE_THEME.SUPER_MANAGER;
   const gradient = sidebarGradient || roleTheme.sidebar;
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   // عنوان صفحه فعلی
   const pageLabels: Record<string, string> = {
@@ -145,21 +163,41 @@ export default function Header({ currentPage, onPageChange, showSidebar = true, 
         <NotificationPanel />
 
         {/* آواتار کاربر با نشان نقش */}
-        <div className="relative">
-          <div className={cn(
-            'w-8 h-8 rounded-xl flex items-center justify-center shadow-soft cursor-pointer flex-shrink-0',
-            `bg-gradient-to-br ${roleTheme.gradient}`
-          )}>
-            <span className="text-xs font-bold text-white">{userName.charAt(0)}</span>
-          </div>
-          {/* نشان نقش */}
-          <span className={cn(
-            'absolute -bottom-1 -right-1 text-[7px] font-bold px-1 py-0 rounded-md leading-tight',
-            ROLE_COLORS[role]
-          )}>
-            {ROLE_LABELS[role]?.split(' ')[0]}
-          </span>
-        </div>
+        <div className="relative ml-1 sm:ml-0" ref={profileRef}>
+  <button
+    onClick={() => setProfileOpen(!profileOpen)}
+    className={cn(
+      'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shadow-soft cursor-pointer shrink-0',
+      `bg-gradient-to-br ${roleTheme.gradient}`
+    )}
+  >
+    <span className="text-xs font-bold text-white">{userName.charAt(0)}</span>
+  </button>
+  {/* نشان نقش */}
+  <span className={cn(
+    'absolute -bottom-1 -right-1 text-[6px] sm:text-[7px] font-bold px-1 py-0 rounded-md leading-tight whitespace-nowrap',
+    ROLE_COLORS[role]
+  )}>
+    {ROLE_LABELS[role]?.split(' ')[0]}
+  </span>
+
+  {/* منوی dropdown برای موبایل */}
+  {profileOpen && (
+    <div className="absolute left-0 top-full mt-2 w-44 bg-card rounded-xl shadow-lg border z-50 py-1">
+      <div className="px-3 py-2 border-b border-border/50">
+        <p className="text-xs font-medium truncate">{userName}</p>
+        <p className="text-[10px] text-muted-foreground">{ROLE_LABELS[role]}</p>
+      </div>
+      <button
+        onClick={() => signOut({ callbackUrl: '/login' })}
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-right hover:bg-red-50 hover:text-red-600 transition-colors"
+      >
+        <LogOut className="w-3.5 h-3.5" />
+        خروج از حساب
+      </button>
+    </div>
+  )}
+</div>
 
         {/* نام کاربر */}
         <span className="hidden md:block text-xs font-medium text-muted-foreground max-w-[100px] truncate">{userName}</span>
