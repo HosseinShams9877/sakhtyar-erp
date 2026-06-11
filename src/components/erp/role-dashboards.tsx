@@ -1825,50 +1825,82 @@ const fileToBase64 = (file: File): Promise<string> => {
             </p>
           )}
         </div>
-        {/* آپلود تصویر فاکتور */}
+    {/* آپلود تصویر فاکتور */}
 <div>
   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
     تصویر فاکتور
   </label>
-  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center hover:border-blue-500 transition-all cursor-pointer bg-gray-50 dark:bg-gray-800/30">
-    {quickFormData.imagePreview ? (
-      <div className="relative inline-block">
-        <img
-          src={quickFormData.imagePreview}
-          alt="تصویر فاکتور"
-          className="max-h-40 mx-auto rounded-lg"
-        />
-        <button
-          type="button"
-          onClick={handleQuickImageRemove}
-          className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    ) : (
-      <label className="cursor-pointer block py-3">
-        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-2">
-          <Camera className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-        </div>
-        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
-          کلیک برای آپلود تصویر
-        </p>
-        <p className="text-[9px] text-muted-foreground mt-1">
-          فرمت‌های مجاز: JPG, PNG | حداکثر ۵ مگابایت
-        </p>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleQuickImageSelect(file);
-          }}
-          className="hidden"
-        />
-      </label>
-    )}
+  
+  {/* دکمه‌های دوربین و آپلود */}
+  <div className="flex gap-2 mb-3">
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'environment';  // ← دوربین عقب
+        input.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (file) handleQuickImageSelect(file);
+        };
+        input.click();
+      }}
+      className="flex-1 gap-2 rounded-xl"
+    >
+      <Camera className="w-4 h-4" />
+      دوربین
+    </Button>
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (file) handleQuickImageSelect(file);
+        };
+        input.click();
+      }}
+      className="flex-1 gap-2 rounded-xl"
+    >
+      <Upload className="w-4 h-4" />
+      آپلود فایل
+    </Button>
   </div>
+
+  {/* نمایش پیش‌نمایش */}
+  {quickFormData.imagePreview ? (
+    <div className="relative inline-block w-full">
+      <img
+        src={quickFormData.imagePreview}
+        alt="تصویر فاکتور"
+        className="max-h-40 mx-auto rounded-lg border border-gray-200"
+      />
+      <button
+        type="button"
+        onClick={handleQuickImageRemove}
+        className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  ) : (
+    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center bg-gray-50 dark:bg-gray-800/30">
+      <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-2">
+        <Camera className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+      </div>
+      <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+        از دکمه‌های بالا برای ثبت تصویر استفاده کنید
+      </p>
+      <p className="text-[9px] text-muted-foreground mt-1">
+        فرمت‌های مجاز: JPG, PNG | حداکثر ۵ مگابایت
+      </p>
+    </div>
+  )}
 </div>
       </div>
 
