@@ -1271,6 +1271,7 @@ export function ProjectManagerDashboard() {
     const [currentShortageRequestId, setCurrentShortageRequestId] = useState<string | null>(null);
     const [showQuickForm, setShowQuickForm] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
+    const [cameraDialogOpen, setCameraDialogOpen] = useState(false);
     const [items, setItems] = useState<InvoiceItemRow[]>([createEmptyItemRow()]);
     const [materials, setMaterials] = useState<Material[]>([]);
     const [openPopover, setOpenPopover] = useState<Record<string, boolean>>({});
@@ -1826,51 +1827,96 @@ const fileToBase64 = (file: File): Promise<string> => {
             </p>
           )}
         </div>
-   {/* آپلود تصویر فاکتور */}
-<div>
+  {/* ثبت تصویر فاکتور */}
+<div className="space-y-2">
   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
     تصویر فاکتور
   </label>
-  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center hover:border-blue-500 transition-all cursor-pointer bg-gray-50 dark:bg-gray-800/30">
-    {quickFormData.imagePreview ? (
-      <div className="relative inline-block">
-        <img
-          src={quickFormData.imagePreview}
-          alt="تصویر فاکتور"
-          className="max-h-40 mx-auto rounded-lg"
-        />
-        <button
-          type="button"
-          onClick={handleQuickImageRemove}
-          className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    ) : (
-      <label className="cursor-pointer block py-3">
-        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-2">
-          <Camera className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-        </div>
-        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
-          کلیک برای آپلود تصویر
-        </p>
-        <p className="text-[9px] text-muted-foreground mt-1">
-          فرمت‌های مجاز: JPG, PNG | حداکثر ۵ مگابایت
-        </p>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleQuickImageSelect(file);
-          }}
-          className="hidden"
-        />
-      </label>
-    )}
-  </div>
+  
+  <Button
+    type="button"
+    variant="outline"
+    onClick={() => setCameraDialogOpen(true)}
+    className="w-full gap-2 rounded-xl py-3 border-dashed"
+  >
+    <Camera className="w-4 h-4" />
+    ثبت تصویر فاکتور
+  </Button>
+
+  {quickFormData.imagePreview && (
+    <div className="relative inline-block w-full mt-2">
+      <img
+        src={quickFormData.imagePreview}
+        alt="تصویر فاکتور"
+        className="max-h-32 mx-auto rounded-lg border border-gray-200"
+      />
+      <button
+        type="button"
+        onClick={handleQuickImageRemove}
+        className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  )}
 </div>
+
+{/* دیالوگ دوربین */}
+<Dialog open={cameraDialogOpen} onOpenChange={setCameraDialogOpen}>
+  <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden" dir="rtl">
+    <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4">
+      <DialogTitle className="text-white text-center text-base">
+        ثبت تصویر فاکتور
+      </DialogTitle>
+    </div>
+    <div className="p-5 text-center">
+      <div className="w-32 h-32 mx-auto mb-4 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+        <Receipt className="w-12 h-12 text-gray-400" />
+      </div>
+      <div className="flex gap-3 mt-2">
+        <Button
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'environment';
+            input.onchange = (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (file) handleQuickImageSelect(file);
+              setCameraDialogOpen(false);
+            };
+            input.click();
+          }}
+          className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl py-3 text-sm font-bold gap-2"
+        >
+          <Camera className="w-4 h-4" />
+          دوربین
+        </Button>
+        <Button
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (file) handleQuickImageSelect(file);
+              setCameraDialogOpen(false);
+            };
+            input.click();
+          }}
+          variant="outline"
+          className="flex-1 rounded-xl py-3 text-sm font-bold gap-2"
+        >
+          <Upload className="w-4 h-4" />
+          آپلود
+        </Button>
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-4">
+        از تصویر فاکتور عکس بگیرید یا از گالری انتخاب کنید
+      </p>
+    </div>
+  </DialogContent>
+</Dialog>
       </div>
 
       {/* دکمه ثبت - ثابت در پایین */}
