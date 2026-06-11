@@ -355,7 +355,10 @@ export const UNIT_LABELS: Record<string, string> = {
 };
 
 export const PROJECT_STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'فعال', COMPLETED: 'تکمیل‌شده', ON_HOLD: 'متوقف‌شده', CANCELLED: 'لغوشده',
+  active: 'فعال',
+  completed: 'تکمیل شده',
+  on_hold: 'متوقف',
+  cancelled: 'لغو شده',
 };
 
 export const INVOICE_STATUS_LABELS: Record<string, string> = {

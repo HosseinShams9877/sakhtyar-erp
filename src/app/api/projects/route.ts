@@ -25,7 +25,10 @@ export async function GET(req: NextRequest) {
     const status = url.searchParams.get('status') || '';
 
     const where: Record<string, string> = {};
-    if (status) where.status = status;
+  
+    if (status && status !== 'all') {
+      where.status = status;
+    }
 
     // 👈 همه نقش‌ها همه پروژه‌ها رو می‌بینن (برای تست)
     const projects = await db.project.findMany({

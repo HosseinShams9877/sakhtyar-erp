@@ -29,14 +29,14 @@ interface Project {
 }
 
 const STATUS_STYLES: Record<string, { bg: string; dot: string }> = {
-  ACTIVE: { bg: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
-  COMPLETED: { bg: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400', dot: 'bg-blue-500' },
-  ON_HOLD: { bg: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400', dot: 'bg-amber-500' },
-  CANCELLED: { bg: 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400', dot: 'bg-rose-500' },
+  active: { bg: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+  completed: { bg: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400', dot: 'bg-blue-500' },
+  on_hold: { bg: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400', dot: 'bg-amber-500' },
+  cancelled: { bg: 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400', dot: 'bg-rose-500' },
 };
 
 const emptyForm = {
-  name: '', code: '', location: '', status: 'ACTIVE', budget: '',
+  name: '', code: '', location: '', status: 'active', budget: '',
   startDate: '', endDate: '', description: '',
 };
 
@@ -63,8 +63,6 @@ export default function ProjectsPage() {
   useEffect(() => {
     loadData();
   }, [search, statusFilter]);
-
-  useEffect(() => { loadData(); }, [loadData , statusFilter]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
