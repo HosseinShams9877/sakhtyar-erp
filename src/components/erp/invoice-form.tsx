@@ -1851,7 +1851,7 @@ const loadMaterials = useCallback(async () => {
   // ─── حالت لیست (پیش‌فرض) ───
   return (
     <div className="space-y-6 p-8 sm:p-12">
-      
+
        {searchParams.get('projectId') && (
     <div className="block sm:hidden">
       <Button
@@ -1860,8 +1860,7 @@ const loadMaterials = useCallback(async () => {
         onClick={() => router.back()}
         className="gap-2 px-2 -ml-2 text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="w-4 h-4" />
-        <span>بازگشت</span>
+        <ArrowLeft className="w-7 h-7" />
       </Button>
     </div>
   )}
