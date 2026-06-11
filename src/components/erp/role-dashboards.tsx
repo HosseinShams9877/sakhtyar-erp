@@ -131,9 +131,11 @@ type AlertLevel = 'red' | 'orange' | 'yellow' | 'green';
    هوک مشترک بارگذاری داده
    ═══════════════════════════════════════════════════════ */
    function useDashboardData() {
-    const { activeProject , loading: projectLoading} = useProject(); 
+    const { activeProject , activeRole,loading: projectLoading} = useProject(); 
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+
+    const isGlobalRole = activeRole === 'SUPER_MANAGER' || activeRole === 'ADMIN';
 
     useEffect(() => {
       if (projectLoading) return;
@@ -141,7 +143,7 @@ type AlertLevel = 'red' | 'orange' | 'yellow' | 'green';
         setLoading(true);
         try {
           // 👇 اضافه کردن projectId به URL
-          const projectId = activeProject?.id;
+          const projectId = !isGlobalRole ? activeProject?.id : null;
           const url = projectId ? `/api/dashboard?projectId=${projectId}` : '/api/dashboard';
           const res = await fetch(url);
           const json = await res.json();
