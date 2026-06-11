@@ -1853,25 +1853,22 @@ const loadMaterials = useCallback(async () => {
     <div className="space-y-6 p-8 sm:p-12">
       {/* هدر */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-  <div className="relative">
-    {/* دکمه برگشت برای موبایل - طراحی شده */}
+  <div className="flex items-center gap-3">
+    {/* دکمه برگشت - فقط در موبایل و کنار عنوان */}
     {searchParams.get('projectId') && (
-      <div className="absolute -top-2 -right-2 sm:hidden">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => router.back()}
-          className="gap-1.5 bg-background/95 backdrop-blur-sm border-2 shadow-md rounded-full px-3 py-1.5 text-sm font-medium hover:bg-muted transition-all duration-200"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>بازگشت</span>
-        </Button>
-      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => router.back()}
+        className="shrink-0 sm:hidden h-9 w-9 rounded-full border shadow-sm"
+      >
+        <ArrowLeft className="w-4 h-4" />
+      </Button>
     )}
-    <h3 className={`text-lg font-extrabold ${searchParams.get('projectId') ? 'pr-16 sm:pr-0' : ''}`}>
-      مدیریت فاکتورها
-    </h3>
-    <p className="text-sm text-muted-foreground">ثبت و مشاهده فاکتورهای خرید مصالح</p>
+    <div>
+      <h3 className="text-lg font-extrabold">مدیریت فاکتورها</h3>
+      <p className="text-sm text-muted-foreground">ثبت و مشاهده فاکتورهای خرید مصالح</p>
+    </div>
   </div>
 
   <div className="flex items-center gap-2 w-full sm:w-auto">
