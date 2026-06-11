@@ -11,6 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useProject } from '@/components/project-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
