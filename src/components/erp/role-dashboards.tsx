@@ -1287,6 +1287,8 @@ export function ProjectManagerDashboard() {
       dueDate: toShamsi(new Date()),
       projectId: '',
       vendorId: '',
+      imageFile: null as File | null,  
+      imagePreview: null as string | null,
     });
     const loadMaterialsForProject = useCallback(async (projectId: string) => {
       if (!projectId) {
@@ -1322,6 +1324,33 @@ export function ProjectManagerDashboard() {
         .filter(s => s.companyName.includes(q) || s.contactName.includes(q))
         .slice(0, 5);
     }, [data, supplierSearch, activeProject?.id, filteredVendors]);
+
+    const handleQuickImageSelect = (file: File) => {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('حجم فایل نباید بیشتر از ۵ مگابایت باشد');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        toast.error('لطفاً فقط فایل تصویری انتخاب کنید');
+        return;
+      }
+      setQuickFormData(prev => ({ 
+        ...prev, 
+        imageFile: file,
+        imagePreview: URL.createObjectURL(file)
+      }));
+    };
+    
+    const handleQuickImageRemove = () => {
+      if (quickFormData.imagePreview) {
+        URL.revokeObjectURL(quickFormData.imagePreview);
+      }
+      setQuickFormData(prev => ({ 
+        ...prev, 
+        imageFile: null,
+        imagePreview: null
+      }));
+    };
   
     const fetchApprovedShortages = useCallback(async () => {
       setLoadingApproved(true);
@@ -1476,7 +1505,7 @@ useEffect(() => {
         toast.error('حداقل یک آیتم فاکتور با نام کالا وارد کنید');
         return;
       }
-  
+    
       setSubmitting(true);
       try {
         const miladiDate = fromShamsi(quickFormData.dueDate);
@@ -1490,7 +1519,13 @@ useEffect(() => {
             unitPrice: row.unitPrice,
             totalPrice: row.totalPrice,
           }));
-  
+    
+        // ✅ تبدیل فایل تصویر به base64 (مثل handleCreate)
+        let imageBase64: string | null = null;
+        if (quickFormData.imageFile) {
+          imageBase64 = await fileToBase64(quickFormData.imageFile);
+        }
+    
         const response = await fetch('/api/invoices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1505,12 +1540,13 @@ useEffect(() => {
             paidAmount: 0,
             status: 'pending',
             items: itemsData,
+            invoiceImage: imageBase64,  // ✅ اضافه شد
           }),
         });
-  
+    
         if (response.ok) {
           toast.success('فاکتور با موفقیت ثبت شد');
-  
+    
           if (currentShortageRequestId) {
             await fetch('/api/shortage-requests', {
               method: 'PUT',
@@ -1523,19 +1559,21 @@ useEffect(() => {
             setCurrentShortageRequestId(null);
             await fetchApprovedShortages();
           }
-  
+    
           setShowQuickForm(false);
           setQuickFormData({
             invoiceNumber: '',
             amount: '',
             dueDate: toShamsi(new Date()),
             projectId: '',
-            vendorId: ''
+            vendorId: '',
+            imageFile: null,
+            imagePreview: null,
           });
           setItems([createEmptyItemRow()]);
-  
+    
           setTimeout(() => window.location.reload(), 1000);
-  
+    
         } else {
           const error = await response.json();
           toast.error(error.message || 'خطا در ثبت فاکتور');
@@ -1547,6 +1585,16 @@ useEffect(() => {
         setSubmitting(false);
       }
     };
+
+    // تابع کمکی برای تبدیل فایل به base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
   
     // ========== شرط‌های return در انتها (بعد از همه Hookها) ==========
     if (projectLoading) return <DashboardSkeleton cards={3} />;
@@ -1777,6 +1825,51 @@ useEffect(() => {
             </p>
           )}
         </div>
+        {/* آپلود تصویر فاکتور */}
+<div>
+  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+    تصویر فاکتور
+  </label>
+  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center hover:border-blue-500 transition-all cursor-pointer bg-gray-50 dark:bg-gray-800/30">
+    {quickFormData.imagePreview ? (
+      <div className="relative inline-block">
+        <img
+          src={quickFormData.imagePreview}
+          alt="تصویر فاکتور"
+          className="max-h-40 mx-auto rounded-lg"
+        />
+        <button
+          type="button"
+          onClick={handleQuickImageRemove}
+          className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    ) : (
+      <label className="cursor-pointer block py-3">
+        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-2">
+          <Camera className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        </div>
+        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+          کلیک برای آپلود تصویر
+        </p>
+        <p className="text-[9px] text-muted-foreground mt-1">
+          فرمت‌های مجاز: JPG, PNG | حداکثر ۵ مگابایت
+        </p>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleQuickImageSelect(file);
+          }}
+          className="hidden"
+        />
+      </label>
+    )}
+  </div>
+</div>
       </div>
 
       {/* دکمه ثبت - ثابت در پایین */}
