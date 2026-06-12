@@ -564,7 +564,7 @@ export default function DueDates() {
               ثبت پرداخت
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-4 py-3 ">
+          <div className="flex-1 overflow-y-auto px-4 py-3 max-h-[calc(85vh-100px)]">
           {selectedDue && (
             <form onSubmit={handlePayment} className="space-y-4 mt-2">
               {/* اطلاعات فاکتور */}
