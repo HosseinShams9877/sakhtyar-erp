@@ -23,7 +23,7 @@ export async function GET() {
     }
 
     const user = await db.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: session.user.id },
       select: {
         avatar: true,
       },
