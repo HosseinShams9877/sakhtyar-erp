@@ -51,7 +51,7 @@ export default function MaterialsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
-  const loadData = useCallback(async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
       const projectId = activeProject?.id || '';
@@ -65,11 +65,11 @@ export default function MaterialsPage() {
     } finally { 
       setLoading(false); 
     }
-  }, [search, filterCat, activeProject?.id]);
+  };
 
   useEffect(() => {
     loadData();
-  }, [loadData])
+  }, [search, filterCat, activeProject?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
