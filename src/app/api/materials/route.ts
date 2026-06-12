@@ -52,13 +52,11 @@ export async function GET(req: NextRequest) {
     });
 
     const categories = await db.materialCategory.findMany({
-      where: {
-        OR: [
-          { projectId: null },          
-          { projectId: projectId },    
-        ],
-      },
-      select: { id: true, name: true, description: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+      }
     });
 
     // ✅ مستقیماً materials را برگردان (نه materialsWithStock)

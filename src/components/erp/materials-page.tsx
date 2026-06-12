@@ -59,7 +59,14 @@ export default function MaterialsPage() {
       const res = await fetch(url);
       const data = await res.json();
       setMaterials(data.materials || []);
-      setCategories(data.categories || []);
+      const uniqueCategories = (data.materials || [])
+  .filter((m: Material) => m.category)
+  .map((m: Material) => m.category)
+  .filter((cat: Category, index: number, self: Category[]) => 
+    self.findIndex((c: Category) => c.id === cat.id) === index
+  );
+setCategories(uniqueCategories);
+     
     } catch (error) {
       console.error('Error loading materials:', error);
     } finally { 
