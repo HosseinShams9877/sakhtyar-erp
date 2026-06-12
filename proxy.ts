@@ -24,7 +24,6 @@ const API_ROLE_ACCESS: Record<string, string[]> = {
   '/api/deliveries': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'WAREHOUSE_KEEPER'],
   '/api/users/avatar': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER', 'ADMIN'],
   '/api/profile': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER', 'ADMIN'],
-  '/api/upload': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER', 'ADMIN'],
 };
 
 function findMatchingApiRoute(pathname: string): string[] | null {
