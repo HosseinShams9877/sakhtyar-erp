@@ -7,10 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import {
-  User, Mail, Phone, Shield, Calendar, Key, Save, Loader2,
-  CheckCircle2, AlertCircle, Eye, EyeOff,
-} from 'lucide-react';
+import { User, Mail, Phone, Shield, Calendar, Key, Save, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROLE_LABELS, ROLE_COLORS, formatDate } from '@/lib/rbac';
 import type { Role } from '@/lib/rbac';
@@ -30,7 +27,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -42,6 +39,45 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
 
   useEffect(() => { loadProfile(); }, []);
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+  
+    if (!file.type.startsWith('image/')) {
+      toast.error('فایل باید تصویر باشد');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
+      return;
+    }
+  
+    const formData = new FormData();
+    formData.append('avatar', file);
+    setUploadingAvatar(true);
+  
+    try {
+      const res = await fetch('/api/user/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success('عکس پروفایل بروزرسانی شد');
+        await updateSession();
+        // reload profile data
+        loadProfile();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'خطا در آپلود');
+      }
+    } catch {
+      toast.error('خطا در ارتباط با سرور');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   async function loadProfile() {
     setLoading(true);
@@ -159,11 +195,36 @@ export default function ProfilePage() {
         <Card className="border-0 shadow-soft lg:col-span-1">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center">
-              <div className="w-24 h-24 gradient-primary rounded-2xl flex items-center justify-center shadow-glow-primary mb-4">
-                <span className="text-3xl font-bold text-white">
-                  {(profile?.name || session?.user?.name || 'ک').charAt(0)}
-                </span>
-              </div>
+            <div className="relative w-24 h-24 rounded-2xl overflow-hidden shadow-glow-primary mb-4">
+  {session?.user?.avatar ? (
+    <img
+      src={session.user.avatar}
+      alt="avatar"
+      className="w-full h-full object-cover"
+    />
+  ) : (
+    <div className="w-full h-full gradient-primary flex items-center justify-center">
+      <span className="text-3xl font-bold text-white">
+        {(profile?.name || session?.user?.name || 'ک').charAt(0)}
+      </span>
+    </div>
+  )}
+  
+  {/* دکمه آپلود عکس */}
+  <label
+    htmlFor="avatar-upload"
+    className="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer opacity-0 hover:opacity-100 transition-opacity"
+  >
+    <Camera className="w-6 h-6 text-white" />
+  </label>
+  <input
+    id="avatar-upload"
+    type="file"
+    accept="image/*"
+    className="hidden"
+    onChange={handleAvatarChange}
+  />
+</div>
               <h3 className="text-lg font-bold">{profile?.name || session?.user?.name || 'کاربر'}</h3>
               <p className="text-sm text-muted-foreground mt-0.5">{profile?.email || session?.user?.email}</p>
               <div className="mt-3">
