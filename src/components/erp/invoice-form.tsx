@@ -261,7 +261,6 @@ const userRole = (session?.user as any)?.role;
         url += `&projectId=${projectId}`;
       }
       
-      console.log('🔍 Fetching URL:', url);
       
       const [invRes, vndRes, prjRes, matRes] = await Promise.all([
         fetch(url),
@@ -275,9 +274,6 @@ const userRole = (session?.user as any)?.role;
       const prjData = await prjRes.json();
       const matData = await matRes.json();
       
-      // دیباگ برای بررسی دیتای دریافتی
-      console.log('📦 Raw matData:', matData);
-      console.log('📦 matData.materials:', matData?.materials);
       
       // دریافت اطلاعات صفحه‌بندی از پاسخ سرور
       const invoicesArray = invData.purchases || [];
@@ -591,22 +587,22 @@ const loadMaterials = useCallback(async () => {
         }));
       
       // گرفتن همه فایل‌ها به صورت base64
-      let imageBase64: string | null = null;
-      let pdfBase64: string | null = null;
-      let waybillBase64: string | null = null;
-      let deliveryReceiptBase64: string | null = null;
+      let imageUrl: string | null = null;
+      let pdfUrl: string | null = null;
+      let waybillUrl: string | null = null;
+      let deliveryReceiptUrl: string | null = null;
       
       if (files.image) {
-        imageBase64 = await fileToBase64(files.image);
+        imageUrl = await uploadFileToBlob(files.image, 'invoices/images');
       }
       if (files.pdf) {
-        pdfBase64 = await fileToBase64(files.pdf);
+        pdfUrl = await uploadFileToBlob(files.pdf, 'invoices/pdfs');
       }
       if (files.waybill) {
-        waybillBase64 = await fileToBase64(files.waybill);
+        waybillUrl = await uploadFileToBlob(files.waybill, 'invoices/waybills');
       }
       if (files.deliveryReceipt) {
-        deliveryReceiptBase64 = await fileToBase64(files.deliveryReceipt);
+        deliveryReceiptUrl = await uploadFileToBlob(files.deliveryReceipt, 'invoices/deliveries');
       }
 
       let finalDescription = form.description || undefined;
@@ -629,14 +625,14 @@ const loadMaterials = useCallback(async () => {
           totalAmount: itemsTotal,
           paidAmount: 0,
           description: finalDescription,
-          invoiceImage: imageBase64,
+          invoiceImageUrl: imageUrl,    
+          pdfUrl: pdfUrl,               
+          waybillUrl: waybillUrl,       
+          deliveryReceiptUrl: deliveryReceiptUrl, 
           items: itemsData,
           paymentMethod: form.paymentMethod || null,
           settlementDate: form.settlementDate || null,
           taxAmount: parseFloat(form.taxAmount) || 0,
-          pdfUrl: pdfBase64,
-          waybillUrl: waybillBase64,
-          deliveryReceiptUrl: deliveryReceiptBase64,
         }),
       });
       
@@ -658,15 +654,28 @@ const loadMaterials = useCallback(async () => {
     }
   };
   
-  // تابع کمکی برای تبدیل فایل به base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
+  // تابع جدید برای آپلود فایل به Blob و برگردوندن URL
+const uploadFileToBlob = async (file: File, prefix: string): Promise<string | null> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('prefix', prefix);
+    
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
     });
-  };
+    
+    if (res.ok) {
+      const data = await res.json();
+      return data.url;
+    }
+    return null;
+  } catch (error) {
+    console.error('Upload error:', error);
+    return null;
+  }
+};
 
   const handleEdit = (inv: Invoice) => {
     
@@ -742,22 +751,22 @@ const loadMaterials = useCallback(async () => {
       
       // فقط اگر فایل جدید آپلود شده، تبدیل به base64 کن
       // در غیر این صورت، فیلد رو ارسال نکن تا سرور مقدار قبلی را حفظ کند
-      let imageBase64: string | null = undefined as any;
-      let pdfBase64: string | null = undefined as any;
-      let waybillBase64: string | null = undefined as any;
-      let deliveryReceiptBase64: string | null = undefined as any;
+      let imageUrl: string | null | undefined = undefined;
+      let pdfUrl: string | null | undefined = undefined;
+      let waybillUrl: string | null | undefined = undefined;
+      let deliveryReceiptUrl: string | null | undefined = undefined;
       
       if (files.image) {
-        imageBase64 = await fileToBase64(files.image);
+        imageUrl = await uploadFileToBlob(files.image, 'invoices/images');
       }
       if (files.pdf) {
-        pdfBase64 = await fileToBase64(files.pdf);
+        pdfUrl = await uploadFileToBlob(files.pdf, 'invoices/pdfs');
       }
       if (files.waybill) {
-        waybillBase64 = await fileToBase64(files.waybill);
+        waybillUrl = await uploadFileToBlob(files.waybill, 'invoices/waybills');
       }
       if (files.deliveryReceipt) {
-        deliveryReceiptBase64 = await fileToBase64(files.deliveryReceipt);
+        deliveryReceiptUrl = await uploadFileToBlob(files.deliveryReceipt, 'invoices/deliveries');
       }
       let finalDescription = form.description || undefined;
         if (isCorrective) {
@@ -784,10 +793,10 @@ const loadMaterials = useCallback(async () => {
       };
       
       // فقط فیلدهایی که مقدار دارند را اضافه کن (undefined را ارسال نکن)
-      if (imageBase64 !== undefined) updateBody.invoiceImage = imageBase64;
-      if (pdfBase64 !== undefined) updateBody.pdfUrl = pdfBase64;
-      if (waybillBase64 !== undefined) updateBody.waybillUrl = waybillBase64;
-      if (deliveryReceiptBase64 !== undefined) updateBody.deliveryReceiptUrl = deliveryReceiptBase64;
+      if (imageUrl !== undefined) updateBody.invoiceImageUrl = imageUrl;
+      if (pdfUrl !== undefined) updateBody.pdfUrl = pdfUrl;
+      if (waybillUrl !== undefined) updateBody.waybillUrl = waybillUrl;
+      if (deliveryReceiptUrl !== undefined) updateBody.deliveryReceiptUrl = deliveryReceiptUrl;
       
       // ارسال به صورت JSON
       const response = await fetch('/api/invoices', {
@@ -1431,24 +1440,14 @@ const loadMaterials = useCallback(async () => {
     };
   
     // تابع تشخیص نوع فایل و دانلود
-    const handleDownload = (data: string, type: 'image' | 'pdf' | 'waybill' | 'receipt') => {
-      if (!data) return;
-      
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-      const filenameMap = {
-        image: `invoice_${inv.invoiceNumber}_${timestamp}.jpg`,
-        pdf: `invoice_${inv.invoiceNumber}_${timestamp}.pdf`,
-        waybill: `waybill_${inv.invoiceNumber}_${timestamp}.jpg`,
-        receipt: `delivery_receipt_${inv.invoiceNumber}_${timestamp}.jpg`,
-      };
-      const mimeTypeMap = {
-        image: 'image/jpeg',
-        pdf: 'application/pdf',
-        waybill: 'image/jpeg',
-        receipt: 'image/jpeg',
-      };
-      
-      downloadFile(data, filenameMap[type], mimeTypeMap[type]);
+    const handleDownload = (url: string, filename: string) => {
+      // اگه URL از Blob هست، مستقیم دانلود کن
+      if (url && (url.startsWith('http') || url.startsWith('https'))) {
+        window.open(url, '_blank');
+      } else {
+        // fallback برای base64
+        downloadFile(url, filename, 'application/octet-stream');
+      }
     };
   
     return (
