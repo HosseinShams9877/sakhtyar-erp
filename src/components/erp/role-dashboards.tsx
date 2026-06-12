@@ -1640,9 +1640,9 @@ const fileToBase64 = (file: File): Promise<string> => {
   <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
     <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-800 flex flex-col max-h-[90vh]">
       {/* هدر ثابت */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 px-5 py-3 flex-shrink-0">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 px-5 py-3 flex-shrink-0 pb-8 sm:pb-0">
         <div className="flex justify-between items-center">
-          <h3 className="text-base font-bold text-white mb-8 sm:mb-0">ثبت فاکتور سریع</h3>
+          <h3 className="text-base font-bold text-white ">ثبت فاکتور سریع</h3>
           <button
             onClick={() => setShowQuickForm(false)}
             className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"

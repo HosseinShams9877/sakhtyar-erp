@@ -559,13 +559,13 @@ export default function DueDates() {
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 sm:p-6" dir="rtl">
           <DialogHeader>
-          <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6">
+          
             <DialogTitle className="flex items-center gap-2 text-sm">
               <CreditCard className="w-4 h-4 text-primary" />
               ثبت پرداخت
             </DialogTitle>
           </DialogHeader>
-
+          <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6">
           {selectedDue && (
             <form onSubmit={handlePayment} className="space-y-4 mt-2">
               {/* اطلاعات فاکتور */}
