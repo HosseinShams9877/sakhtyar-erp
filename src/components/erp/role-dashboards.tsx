@@ -1511,6 +1511,7 @@ useEffect(() => {
     
 const uploadFileToBlob = async (file: File, prefix: string): Promise<string | null> => {
   try {
+    console.log('📤 Uploading:', file.name, 'Size:', file.size);
     const formData = new FormData();
     formData.append('file', file);
     formData.append('prefix', prefix);
@@ -1519,7 +1520,7 @@ const uploadFileToBlob = async (file: File, prefix: string): Promise<string | nu
       method: 'POST',
       body: formData,
     });
-    
+    console.log('📥 Response status:', res.status);
     if (res.ok) {
       const data = await res.json();
       return data.url;
