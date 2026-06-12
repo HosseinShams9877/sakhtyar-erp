@@ -58,7 +58,7 @@ export default function ProfilePage() {
     setUploadingAvatar(true);
   
     try {
-      const res = await fetch('/api/user/avatar', {
+      const res = await fetch('/api/users/avatar', {
         method: 'POST',
         body: formData,
       });
