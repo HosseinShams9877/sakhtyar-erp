@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         code: true,
-        stock: true,        // ← موجودی مستقیم
+        stock: true,        
         unit: true,
         minStock: true,
         description: true,
@@ -52,11 +52,13 @@ export async function GET(req: NextRequest) {
     });
 
     const categories = await db.materialCategory.findMany({
-      select: {
-        id: true,
-        name: true,
-        description: true,
-      }
+      where: {
+        OR: [
+          { projectId: null },          
+          { projectId: projectId },    
+        ],
+      },
+      select: { id: true, name: true, description: true },
     });
 
     // ✅ مستقیماً materials را برگردان (نه materialsWithStock)
