@@ -17,7 +17,7 @@ const API_ROLE_ACCESS: Record<string, string[]> = {
   '/api/dashboard': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER', 'ADMIN'],
   '/api/transactions': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER'],
   '/api/materials': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER'],
-  '/api/payments': ['SUPER_MANAGER', 'PROJECT_MANAGER'],
+  '/api/payments': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER'],
   '/api/invoices/approve': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER'],
   '/api/project-members': ['SUPER_MANAGER', 'ADMIN', 'PROJECT_MANAGER'],
   '/api/user-projects': ['SUPER_MANAGER', 'PROJECT_MANAGER', 'PURCHASER', 'WAREHOUSE_KEEPER', 'ADMIN'],
