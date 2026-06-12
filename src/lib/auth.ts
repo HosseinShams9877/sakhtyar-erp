@@ -136,6 +136,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email || user.nationalCode,
           role: user.role?.name || 'WAREHOUSE_KEEPER',
+          avatar: user.avatar,
         };
       },
     }),
@@ -145,6 +146,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role;
+        token.avatar = (user as any).avatar; 
       }
       return token;
     },
@@ -152,6 +154,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
+        (session.user as any).avatar = token.avatar;
       }
       return session;
     },

@@ -13,6 +13,7 @@ interface SessionUser {
   image?: string | null;
   id?: string;
   role?: string;
+  avatar?: string;
 }
 
 interface SessionData {
