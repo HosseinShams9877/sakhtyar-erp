@@ -1508,6 +1508,37 @@ useEffect(() => {
       }
       return baseLink;
     };
+    
+const uploadFileToBlob = async (file: File, prefix: string): Promise<string | null> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('prefix', prefix);
+    
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      return data.url;
+    }
+    return null;
+  } catch (error) {
+    console.error('Upload error:', error);
+    return null;
+  }
+};
+
+const handleQuickSubmit = async () => {
+  // ... بقیه کد
+  let imageUrl: string | null = null;
+  if (quickFormData.imageFile) {
+    imageUrl = await uploadFileToBlob(quickFormData.imageFile, 'invoices/images'); // فقط فراخوانی
+  }
+  // ...
+};
   
     const handleQuickSubmit = async () => {
       if (!quickFormData.invoiceNumber || !quickFormData.projectId || !quickFormData.vendorId) {
@@ -1532,11 +1563,11 @@ useEffect(() => {
             unitPrice: row.unitPrice,
             totalPrice: row.totalPrice,
           }));
-    
+         
         // ✅ تبدیل فایل تصویر به base64 (مثل handleCreate)
-        let imageBase64: string | null = null;
+        let imageUrl: string | null = null;
         if (quickFormData.imageFile) {
-          imageBase64 = await fileToBase64(quickFormData.imageFile);
+          imageUrl = await uploadFileToBlob(quickFormData.imageFile, 'invoices/images');
         }
     
         const response = await fetch('/api/invoices', {
@@ -1553,7 +1584,7 @@ useEffect(() => {
             paidAmount: 0,
             status: 'pending',
             items: itemsData,
-            invoiceImage: imageBase64,  
+            invoiceImageUrl: imageUrl  
           }),
         });
     
@@ -1599,16 +1630,6 @@ useEffect(() => {
       }
     };
 
-    // تابع کمکی برای تبدیل فایل به base64
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
-};
-  
     // ========== شرط‌های return در انتها (بعد از همه Hookها) ==========
     if (projectLoading) return <DashboardSkeleton cards={3} />;
     if (loading) return <DashboardSkeleton cards={3} />;

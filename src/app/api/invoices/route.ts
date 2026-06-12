@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       invoiceNumber, projectId, supplierId, purchaseDate, dueDate,
-      totalAmount, paidAmount, description, invoiceImage, items,
+      totalAmount, paidAmount, description, invoiceImageUrl, items,
       paymentMethod, settlementDate, taxAmount,
       pdfUrl, waybillUrl, deliveryReceiptUrl,
     } = body;
@@ -259,7 +259,7 @@ export async function POST(req: NextRequest) {
         paidAmount: paidAmount || 0,
         status: 'pending',
         description: description || null,
-        invoiceImage: invoiceImage || null,
+        invoiceImage: invoiceImageUrl  || null,
         createdById: auth.userId,
         paymentMethod: paymentMethod || null,
         settlementDate: settlementDate ? new Date(settlementDate) : null,
@@ -322,7 +322,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, items, ...rest } = body;
+    const { id, items, invoiceImageUrl, pdfUrl, waybillUrl, deliveryReceiptUrl, ...rest } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'شناسه خرید الزامی است' }, { status: 400 });
@@ -345,15 +345,15 @@ export async function PUT(req: NextRequest) {
     if (rest.paidAmount !== undefined) updateData.paidAmount = rest.paidAmount;
     if (rest.status !== undefined) updateData.status = rest.status;
     if (rest.description !== undefined) updateData.description = rest.description;
-    if (rest.invoiceImage !== undefined) updateData.invoiceImage = rest.invoiceImage;
+    if (invoiceImageUrl !== undefined) updateData.invoiceImage = invoiceImageUrl;
     
     // ✅ فیلدهای جدید - اضافه کن
     if (rest.paymentMethod !== undefined) updateData.paymentMethod = rest.paymentMethod;
     if (rest.settlementDate !== undefined) updateData.settlementDate = rest.settlementDate ? new Date(rest.settlementDate) : null;
     if (rest.taxAmount !== undefined) updateData.taxAmount = rest.taxAmount;
-    if (rest.pdfUrl !== undefined) updateData.pdfUrl = rest.pdfUrl;
-    if (rest.waybillUrl !== undefined) updateData.waybillUrl = rest.waybillUrl;
-    if (rest.deliveryReceiptUrl !== undefined) updateData.deliveryReceiptUrl = rest.deliveryReceiptUrl;
+    if (pdfUrl !== undefined) updateData.pdfUrl = pdfUrl
+    if (waybillUrl !== undefined) updateData.waybillUrl = waybillUrl;
+    if (deliveryReceiptUrl !== undefined) updateData.deliveryReceiptUrl = deliveryReceiptUrl;
 
     if (items && Array.isArray(items)) {
       await db.purchaseItem.deleteMany({ where: { purchaseId: id } });
