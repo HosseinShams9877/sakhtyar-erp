@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    const blob = await put(${prefix}/-, file, {
+    const blob = await put(`${prefix}/${Date.now()}-${file.name}`, file, {
       access: 'public',
     });
 
