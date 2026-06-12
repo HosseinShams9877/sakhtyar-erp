@@ -148,6 +148,8 @@ const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'warehouse:create',
     'reports:view',
     'materials:view', 'tracking:view',
+    'profile:edit',
+    'profile:view',
     // عدم دسترسی
     // ❌ پروژه‌های دیگر
     // ❌ تنظیمات سیستم
@@ -164,7 +166,9 @@ const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'vendors:view', 'vendors:create', 'vendors:edit',
     'transactions:view',
     'materials:view',
-    'materials:create'
+    'materials:create',
+    'profile:edit',
+    'profile:view',
     // عدم دسترسی
     // ❌ تنظیمات سیستم
     // ❌ مدیریت کاربران
@@ -179,6 +183,8 @@ const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'invoices:view',
     'materials:view', 'tracking:view',
     'deliveries:confirm',
+    'profile:edit',
+    'profile:view',
     // عدم دسترسی
     // ❌ بدهی‌ها
     // ❌ سررسیدها
