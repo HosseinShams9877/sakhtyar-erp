@@ -557,15 +557,14 @@ export default function DueDates() {
 
       {/* ─── دیالوگ ثبت پرداخت ─── */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 sm:p-0" dir="rtl">
-          <DialogHeader>
-          
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 " dir="rtl">
+          <DialogHeader className="px-4 pt-4 pb-2 shrink-0 border-b border-border/50">
             <DialogTitle className="flex items-center gap-2 text-sm">
               <CreditCard className="w-4 h-4 text-primary" />
               ثبت پرداخت
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 max-h-[calc(90vh-120px)]">
+          <div className="flex-1 overflow-y-auto px-4 py-3 ">
           {selectedDue && (
             <form onSubmit={handlePayment} className="space-y-4 mt-2">
               {/* اطلاعات فاکتور */}
@@ -696,7 +695,7 @@ export default function DueDates() {
 
       {/* ─── دیالوگ جزئیات ─── */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="max-w-lg" dir="rtl">
+        <DialogContent className="max-w-lg " dir="rtl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm">
               <Receipt className="w-4 h-4 text-primary" />
