@@ -1,4 +1,4 @@
-﻿import { put } from '@vercel/blob';
+import { put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    const blob = await put(${prefix}/-, file, {
+    // آپلود به Vercel Blob
+    const blob = await put(`${prefix}/${Date.now()}-${file.name}`, file, {
       access: 'public',
     });
 
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// برای درخواست OPTIONS (مرورگرها گاهی می‌فرستند)
 export async function OPTIONS() {
   return NextResponse.json({}, { status: 200 });
 }
