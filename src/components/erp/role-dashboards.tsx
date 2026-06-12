@@ -1531,15 +1531,6 @@ const uploadFileToBlob = async (file: File, prefix: string): Promise<string | nu
   }
 };
 
-const handleQuickSubmit = async () => {
-  // ... بقیه کد
-  let imageUrl: string | null = null;
-  if (quickFormData.imageFile) {
-    imageUrl = await uploadFileToBlob(quickFormData.imageFile, 'invoices/images'); // فقط فراخوانی
-  }
-  // ...
-};
-  
     const handleQuickSubmit = async () => {
       if (!quickFormData.invoiceNumber || !quickFormData.projectId || !quickFormData.vendorId) {
         toast.error('لطفاً تمام فیلدهای الزامی را تکمیل کنید');
