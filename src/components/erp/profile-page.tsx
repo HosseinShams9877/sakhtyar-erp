@@ -16,6 +16,7 @@ interface ProfileData {
   id: string;
   name: string;
   email: string;
+  avatar?: string | null;
   role: Role;
   phone: string | null;
   isActive: boolean;
@@ -39,22 +40,88 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
 
   useEffect(() => { loadProfile(); }, []);
-
+  
+  const compressImage = (file: File, maxSizeKB: number): Promise<File | null> => {
+    return new Promise((resolve) => {
+      // اگه حجم فایل کمتر از حد مجاز باشه، نیازی به فشرده‌سازی نیست
+      if (file.size <= maxSizeKB * 1024) {
+        resolve(file);
+        return;
+      }
+  
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // محدود کردن ابعاد (حداکثر 800px)
+          const maxSize = 800;
+          if (width > maxSize && width >= height) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          } else if (height > maxSize && height > width) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // تعیین کیفیت بر اساس حجم مورد نظر
+          let quality = 0.9;
+          const tryCompress = (q: number) => {
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  if (blob.size <= maxSizeKB * 1024 || q <= 0.3) {
+                    const compressedFile = new File([blob], file.name, { type: 'image/jpeg' });
+                    resolve(compressedFile);
+                  } else {
+                    tryCompress(q - 0.1);
+                  }
+                } else {
+                  resolve(null);
+                }
+              },
+              'image/jpeg',
+              q
+            );
+          };
+          
+          tryCompress(quality);
+        };
+        img.onerror = () => resolve(null);
+      };
+      reader.onerror = () => resolve(null);
+    });
+  };
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
   
+    // اعتبارسنجی نوع فایل
     if (!file.type.startsWith('image/')) {
       toast.error('فایل باید تصویر باشد');
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
+  
+    // فشرده‌سازی عکس
+    const compressedFile = await compressImage(file, 500); // حداکثر 500KB
+    if (!compressedFile) {
+      toast.error('خطا در فشرده‌سازی تصویر');
       return;
     }
   
     const formData = new FormData();
-    formData.append('avatar', file);
+    formData.append('avatar', compressedFile);
     setUploadingAvatar(true);
   
     try {
@@ -62,20 +129,32 @@ export default function ProfilePage() {
         method: 'POST',
         body: formData,
       });
+      
       if (res.ok) {
         const data = await res.json();
         toast.success('عکس پروفایل بروزرسانی شد');
+        
+        // آپدیت session
         await updateSession();
-        // reload profile data
-        loadProfile();
+        
+        // آپدیت دستی profile state
+        setProfile(prev => prev ? { ...prev, avatar: data.avatarUrl } : prev);
+        
+        // رفرش صفحه برای اطمینان
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
       } else {
         const error = await res.json();
         toast.error(error.error || 'خطا در آپلود');
       }
-    } catch {
+    } catch (error) {
+      console.error('Upload error:', error);
       toast.error('خطا در ارتباط با سرور');
     } finally {
       setUploadingAvatar(false);
+      // reset input
+      event.target.value = '';
     }
   };
 
