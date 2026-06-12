@@ -67,7 +67,7 @@ export default function MaterialsPage() {
     }
   }, [search, filterCat, activeProject?.id]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(); }, [activeProject?.id, search, filterCat, isAdmin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
