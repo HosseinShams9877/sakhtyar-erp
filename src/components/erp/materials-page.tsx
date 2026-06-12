@@ -50,6 +50,7 @@ export default function MaterialsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
 
   const loadData = async () => {
     setLoading(true);
@@ -60,12 +61,19 @@ export default function MaterialsPage() {
       const data = await res.json();
       setMaterials(data.materials || []);
       const uniqueCategories = (data.materials || [])
-  .filter((m: Material) => m.category)
-  .map((m: Material) => m.category)
-  .filter((cat: Category, index: number, self: Category[]) => 
-    self.findIndex((c: Category) => c.id === cat.id) === index
-  );
-setCategories(uniqueCategories);
+      .filter((m: Material) => m.category)
+      .map((m: Material) => m.category)
+      .filter((cat: Category, index: number, self: Category[]) => 
+        self.findIndex((c: Category) => c.id === cat.id) === index
+      );
+    
+    // ادغام با دسته‌بندی‌های قبلی (بدون تکرار)
+    setAllCategories(prev => {
+      const combined = [...prev, ...uniqueCategories];
+      return combined.filter((cat, index, self) => 
+        self.findIndex(c => c.id === cat.id) === index
+      );
+    });
      
     } catch (error) {
       console.error('Error loading materials:', error);
@@ -139,7 +147,7 @@ setCategories(uniqueCategories);
             <SelectTrigger className="w-36 rounded-xl"><SelectValue placeholder="دسته‌بندی" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">همه</SelectItem>
-              {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
+              {allCategories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
             </SelectContent>
           </Select>
           {isAdmin && (
