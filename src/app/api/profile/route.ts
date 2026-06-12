@@ -1,5 +1,6 @@
 // ─── API پروفایل کاربر جاری ───
 // مدل User حذف شده — بازگرداندن پروفایل پیش‌فرض
+import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
@@ -67,7 +68,7 @@ export async function PUT(req: NextRequest) {
 
     // آپدیت در دیتابیس
     const updatedUser = await db.user.update({
-      where: { email: session.user.email },
+      where: { id: session.user.id },
       data: updateData,
       select: {
         id: true,
