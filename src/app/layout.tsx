@@ -39,9 +39,13 @@ export default function RootLayout({
             disableTransitionOnChange={false}
           >
             <ProjectProvider>
-              {children}
+            <div className="flex flex-col min-h-screen">
+              <main className="flex-1 px-4 pb-14 sm:pb-6">
+                {children}
+              </main>
+            </div>
             </ProjectProvider>
-            <Toaster
+             <Toaster
               position="top-center"
               dir="rtl"
               toastOptions={{
