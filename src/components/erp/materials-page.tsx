@@ -67,7 +67,6 @@ export default function MaterialsPage() {
         self.findIndex((c: Category) => c.id === cat.id) === index
       );
     
-    // ادغام با دسته‌بندی‌های قبلی (بدون تکرار)
     setAllCategories(prev => {
       const combined = [...prev, ...uniqueCategories];
       return combined.filter((cat, index, self) => 

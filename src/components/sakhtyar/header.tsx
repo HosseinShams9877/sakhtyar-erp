@@ -17,10 +17,11 @@ import {
   HardHat,
   LogOut,
   ChevronDown,
-  Search,
+  Search,User 
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { signOut } from 'next-auth/react';
+import Link from 'next/link';
 
 /* ═══════════════════════════════════════════════════════════
    تایپ‌ها
@@ -162,17 +163,26 @@ export default function Header({ currentPage, onPageChange, showSidebar = true, 
         {/* زنگوله نوتیفیکیشن */}
         <NotificationPanel />
 
-        {/* آواتار کاربر با نشان نقش */}
-        <div className="relative ml-1 sm:ml-0" ref={profileRef}>
+       {/* آواتار کاربر با نشان نقش */}
+<div className="relative ml-1 sm:ml-0" ref={profileRef}>
   <button
     onClick={() => setProfileOpen(!profileOpen)}
     className={cn(
-      'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shadow-soft cursor-pointer shrink-0',
-      `bg-gradient-to-br ${roleTheme.gradient}`
+      'w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shadow-soft cursor-pointer shrink-0 overflow-hidden',
+      !session?.user?.avatar && `bg-gradient-to-br ${roleTheme.gradient}`
     )}
   >
-    <span className="text-xs font-bold text-white">{userName.charAt(0)}</span>
+    {session?.user?.avatar ? (
+      <img
+        src={session.user.avatar}
+        alt={userName}
+        className="w-full h-full object-cover"
+      />
+    ) : (
+      <span className="text-xs font-bold text-white">{userName.charAt(0)}</span>
+    )}
   </button>
+  
   {/* نشان نقش */}
   <span className={cn(
     'absolute -bottom-1 -right-1 text-[6px] sm:text-[7px] font-bold px-1 py-0 rounded-md leading-tight whitespace-nowrap',
@@ -181,13 +191,26 @@ export default function Header({ currentPage, onPageChange, showSidebar = true, 
     {ROLE_LABELS[role]?.split(' ')[0]}
   </span>
 
-  {/* منوی dropdown برای موبایل */}
+  {/* منوی dropdown */}
   {profileOpen && (
-    <div className="absolute left-0 top-full mt-2 w-44 bg-card rounded-xl shadow-lg border z-50 py-1">
+    <div className="absolute left-0 top-full mt-2 w-48 bg-card rounded-xl shadow-lg border z-50 py-1">
       <div className="px-3 py-2 border-b border-border/50">
         <p className="text-xs font-medium truncate">{userName}</p>
         <p className="text-[10px] text-muted-foreground">{ROLE_LABELS[role]}</p>
       </div>
+      
+      {/* لینک به صفحه پروفایل */}
+      <Link href="/profile">
+        <button
+          onClick={() => setProfileOpen(false)}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-right hover:bg-muted transition-colors"
+        >
+          <User className="w-3.5 h-3.5" />
+          پروفایل من
+        </button>
+      </Link>
+      
+      {/* دکمه خروج */}
       <button
         onClick={() => signOut({ callbackUrl: '/login' })}
         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-right hover:bg-red-50 hover:text-red-600 transition-colors"
