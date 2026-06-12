@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     // ذخیره URL در دیتابیس
     await db.user.update({
-      where: { email: session.user.email },
+      where: { id: session.user.id },
       data: { avatar: blob.url },
     });
 
