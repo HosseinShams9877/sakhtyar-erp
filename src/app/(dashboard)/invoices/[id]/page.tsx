@@ -16,7 +16,7 @@ import {
   toPersianDigits, formatCurrency, formatDate,
   INVOICE_STATUS_LABELS, PAYMENT_METHOD_LABELS, UNIT_LABELS 
 } from '@/lib/rbac';
-import { useRouter } from 'next/navigation';
+
 
 interface InvoiceDetail {
   id: string;
@@ -54,7 +54,7 @@ export default function InvoiceDetailPage() {
   const id = params?.id as string;
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter()
+  
 
   useEffect(() => {
     if (id) {
@@ -99,16 +99,7 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="block sm:hidden">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => router.back()}
-        className="gap-2 px-2 -ml-2 text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="w-7 h-7" />
-      </Button>
-    </div>
+     
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/invoices">

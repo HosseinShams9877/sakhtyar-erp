@@ -341,6 +341,7 @@ export default function ReportsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
+                      <TableHead className="text-right text-xs">مدرک</TableHead>
                       <TableHead className="text-right text-xs">نوع</TableHead>
                       <TableHead className="text-right text-xs">مصالح</TableHead>
                       <TableHead className="text-right text-xs">پروژه</TableHead>
@@ -348,7 +349,6 @@ export default function ReportsPage() {
                       <TableHead className="text-right text-xs">مقدار</TableHead>
                       <TableHead className="text-right text-xs">مبلغ کل</TableHead>
                       <TableHead className="text-right text-xs">تاریخ</TableHead>
-                      <TableHead className="text-right text-xs">مدرک</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

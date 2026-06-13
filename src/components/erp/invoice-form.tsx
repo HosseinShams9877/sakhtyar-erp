@@ -1866,6 +1866,16 @@ const uploadFileToBlob = async (file: File, prefix: string): Promise<string | nu
 
   {/* هدر اصلی (بدون دکمه) */}
   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+  <div className="block sm:hidden">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => router.back()}
+        className="gap-2 px-2 -ml-2 text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="w-7 h-7" />
+      </Button>
+    </div>
     <div>
       <h3 className="text-lg font-extrabold">مدیریت فاکتورها</h3>
       <p className="text-sm text-muted-foreground">ثبت و مشاهده فاکتورهای خرید مصالح</p>
