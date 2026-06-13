@@ -360,7 +360,7 @@ export default function InvoiceDetailPage() {
   </>
 )}
 {/* ویس پرداخت */}
-{invoice.payments?.[0]?.voiceNoteUrl && (
+{invoice.payments && invoice.payments.length > 0 && invoice.payments?.[0]?.voiceNoteUrl && (
   <div className="p-3 rounded-xl bg-muted/30">
     <p className="text-xs font-semibold mb-2 flex items-center gap-1">
       <Receipt className="w-3 h-3" />
