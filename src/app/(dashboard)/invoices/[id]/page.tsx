@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { 
   ArrowLeft, FileText, Truck, Receipt, 
   CreditCard, CalendarDays, Package, Building2,
-  AlertTriangle, CheckCircle2
+  AlertTriangle, CheckCircle2, Eye
 } from 'lucide-react';
 import Link from 'next/link';
 import { 
@@ -46,6 +46,12 @@ interface InvoiceDetail {
     actualQuantity?: number | null;
     discrepancy?: string | null;
     hasDiscrepancy?: boolean;
+  }>;
+  payments?: Array<{  
+    id: string;
+    amount: number;
+    method: string;
+    voiceNoteUrl?: string;
   }>;
 }
 
