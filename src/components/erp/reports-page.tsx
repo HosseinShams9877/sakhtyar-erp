@@ -311,19 +311,19 @@ export default function ReportsPage() {
 
       {/* تب‌های گزارش */}
       <Tabs defaultValue="transactions" className="space-y-4">
-        <div className="flex items-center justify-between">
-          <TabsList className="rounded-xl">
-            <TabsTrigger value="transactions" className="rounded-lg text-xs">تراکنش‌ها</TabsTrigger>
+       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <TabsList className="rounded-xl w-full sm:w-auto">
+            <TabsTrigger value="transactions" className="rounded-lg text-xs flex-1">تراکنش‌ها</TabsTrigger>
             <TabsTrigger value="invoices" className="rounded-lg text-xs">فاکتورها</TabsTrigger>
             <TabsTrigger value="summary" className="rounded-lg text-xs">خلاصه پروژه</TabsTrigger>
           </TabsList>
-          <div className="flex flex-col sm:flex-row gap-2">
-          <Button size="sm" variant="outline" className="gap-2 rounded-xl text-xs w-full sm:w-auto"
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button size="sm" variant="outline" className="gap-2 rounded-xl text-xs"
               onClick={() => handleExportCSV('transactions')}>
               <Download className="w-3.5 h-3.5" />
               خروجی CSV تراکنش‌ها
             </Button>
-            <Button size="sm" variant="outline" className="gap-2 rounded-xl text-xs w-full sm:w-auto"
+            <Button size="sm" variant="outline" className="gap-2 rounded-xl text-xs w-full sm:w-auto justify-center"
               onClick={() => handleExportCSV('invoices')}>
               <Download className="w-3.5 h-3.5" />
               خروجی CSV فاکتورها

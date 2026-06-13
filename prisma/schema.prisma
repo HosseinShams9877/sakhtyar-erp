@@ -314,6 +314,7 @@ model Transaction {
   description       String?  // توضیحات
   deliveryPerson    String?  // تحویل‌دهنده
   receivedBy        String?  // گیرنده
+  imageUrl          String?
   warehouseConfirmed Boolean @default(false) // تایید انباردار
   actualQuantity    Float?   // مقدار واقعی تحویل
   discrepancy       String?  // مغایرت

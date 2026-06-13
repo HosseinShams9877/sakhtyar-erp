@@ -229,10 +229,24 @@ const uniqueUnits = React.useMemo(() => {
     
     setSubmitting(true);
     try {
+      let imageUrl: string | null = null;
+    if (capturedImage && capturedImage.startsWith('data:image')) {
+      // تبدیل base64 به File
+      const blob = await fetch(capturedImage).then(res => res.blob());
+      const file = new File([blob], 'delivery-image.jpg', { type: 'image/jpeg' });
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (uploadRes.ok) {
+        const data = await uploadRes.json();
+        imageUrl = data.url;
+      }
+    }
       // ساخت payload با مقادیر واقعی و مغایرت‌ها
       const payload = {
         deliveryId: selectedDelivery.id,
         confirmedBy: 'انباردار',
+        imageUrl,
         image: capturedImage,
         notes: notes,
         items: selectedDelivery.items?.map((item: any) => ({

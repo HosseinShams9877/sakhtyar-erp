@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const projectId = url.searchParams.get('projectId') || '';
     const materialId = url.searchParams.get('materialId') || '';
     const type = url.searchParams.get('type') || '';
+    
 
     // شرط جستجو
     const where: any = {};
@@ -125,7 +126,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, warehouseConfirmed, actualQuantity, discrepancy } = body;
+    const { id, warehouseConfirmed, actualQuantity, discrepancy,, imageUrl } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'شناسه تراکنش الزامی است' }, { status: 400 });
@@ -147,6 +148,7 @@ export async function PUT(req: NextRequest) {
         warehouseConfirmed,
         actualQuantity,
         discrepancy,
+        imageUrl,
       },
     });
 

@@ -84,13 +84,13 @@ export async function GET(req: NextRequest) {
 
 // ─── POST /api/deliveries ───
 export async function POST(req: NextRequest) {
-  console.log('🔍 POST /api/deliveries called');
+  
   const auth = await requirePermission('deliveries:confirm');
   if (!auth.success) return auth.response;
 
   try {
     const body = await req.json();
-    const { deliveryId, confirmedBy, image, notes, items: bodyItems } = body;
+    const { deliveryId, confirmedBy, image, notes, items: bodyItems , imageUrl} = body;
 
     const purchase = await db.purchase.findUnique({
       where: { id: deliveryId },
@@ -216,6 +216,7 @@ export async function POST(req: NextRequest) {
                 warehouseConfirmed: true,
                 date: new Date(),
                 userId: auth.userId,
+                imageUrl: imageUrl,
               },
             });
           }
