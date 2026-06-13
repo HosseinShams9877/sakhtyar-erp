@@ -149,6 +149,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
+        id: result.payment.id,
         payment: result.payment,
         purchaseUpdate: {
           paidAmount: result.newPaidAmount,
