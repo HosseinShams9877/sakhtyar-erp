@@ -126,7 +126,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, warehouseConfirmed, actualQuantity, discrepancy,, imageUrl } = body;
+    const { id, warehouseConfirmed, actualQuantity, discrepancy, imageUrl } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'شناسه تراکنش الزامی است' }, { status: 400 });
