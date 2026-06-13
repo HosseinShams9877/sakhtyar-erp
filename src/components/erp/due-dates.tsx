@@ -706,8 +706,7 @@ const uploadVoiceNote = async (paymentId: string, file: File): Promise<string | 
                     rows={2}
                   />
                 </div>
-
-              <div className="space-y-2">
+                <div className="space-y-2">
   <Label className="text-xs font-semibold">ویس یادداشت (اختیاری)</Label>
   <div className="flex items-center gap-2">
     <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-500 transition-all bg-gray-50">
@@ -733,6 +732,7 @@ const uploadVoiceNote = async (paymentId: string, file: File): Promise<string | 
     </div>
   )}
 </div>
+              </div>
 
               {/* Action Buttons */}
               <div className="flex gap-3 justify-end">
