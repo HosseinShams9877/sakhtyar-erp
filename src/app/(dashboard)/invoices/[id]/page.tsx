@@ -16,6 +16,7 @@ import {
   toPersianDigits, formatCurrency, formatDate,
   INVOICE_STATUS_LABELS, PAYMENT_METHOD_LABELS, UNIT_LABELS 
 } from '@/lib/rbac';
+import { useRouter } from 'next/navigation';
 
 interface InvoiceDetail {
   id: string;
@@ -53,6 +54,7 @@ export default function InvoiceDetailPage() {
   const id = params?.id as string;
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter()
 
   useEffect(() => {
     if (id) {
@@ -97,6 +99,16 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <div className="block sm:hidden">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => router.back()}
+        className="gap-2 px-2 -ml-2 text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="w-7 h-7" />
+      </Button>
+    </div>
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/invoices">
@@ -283,6 +295,87 @@ export default function InvoiceDetailPage() {
               </div>
             </>
           )}
+          {/* مدارک و تصاویر */}
+{(invoice.invoiceImage || invoice.waybillUrl || invoice.deliveryReceiptUrl) && (
+  <>
+    <Separator />
+    <div>
+      <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
+        <Receipt className="w-4 h-4" />
+        مدارک و تصاویر
+      </h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {/* تصویر فاکتور */}
+        {invoice.invoiceImage && (
+          <div className="p-3 rounded-xl bg-muted/30">
+            <p className="text-xs font-semibold mb-2">تصویر فاکتور</p>
+            <a 
+              href={invoice.invoiceImage} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
+            >
+              <FileText className="w-4 h-4" />
+              <span className="text-sm">مشاهده تصویر</span>
+            </a>
+          </div>
+        )}
+
+        {/* عکس بارنامه */}
+        {invoice.waybillUrl && (
+          <div className="p-3 rounded-xl bg-muted/30">
+            <p className="text-xs font-semibold mb-2 flex items-center gap-1">
+              <Truck className="w-3 h-3" />
+              بارنامه
+            </p>
+            <a 
+              href={invoice.waybillUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
+            >
+              <Eye className="w-4 h-4" />
+              <span className="text-sm">مشاهده بارنامه</span>
+            </a>
+          </div>
+        )}
+
+        {/* رسید تحویل */}
+        {invoice.deliveryReceiptUrl && (
+          <div className="p-3 rounded-xl bg-muted/30">
+            <p className="text-xs font-semibold mb-2 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" />
+              رسید تحویل
+            </p>
+            <a 
+              href={invoice.deliveryReceiptUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
+            >
+              <Eye className="w-4 h-4" />
+              <span className="text-sm">مشاهده رسید</span>
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  </>
+)}
+{/* ویس پرداخت */}
+{invoice.payments?.[0]?.voiceNoteUrl && (
+  <div className="p-3 rounded-xl bg-muted/30">
+    <p className="text-xs font-semibold mb-2 flex items-center gap-1">
+      <Receipt className="w-3 h-3" />
+      ویس پرداخت
+    </p>
+    <audio 
+      controls 
+      src={invoice.payments[0].voiceNoteUrl} 
+      className="w-full h-10"
+    />
+  </div>
+)}
         </CardContent>
       </Card>
     </div>

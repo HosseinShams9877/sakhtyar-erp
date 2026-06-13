@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, FileSpreadsheet, FileText, BarChart3, Filter } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, BarChart3, Filter, Eye } from 'lucide-react';
 import ShamsiDatePicker from '@/components/ui/shamsi-date-picker';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ interface Transaction {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  imageUrl?: string;
   date: string;
   material?: { id: string; name: string; unit: string };
   project?: { id: string; name: string };
@@ -43,6 +44,8 @@ interface Invoice {
   settlementDate?: string;
   date: string;
   status: string;
+  invoiceImage?: string;  
+  payments?: Array<{ voiceNoteUrl?: string }>;
   supplier?: { id: string; companyName: string };
   vendor?: { id: string; companyName: string };
   project?: { id: string; name: string };

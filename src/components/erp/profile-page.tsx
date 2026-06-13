@@ -11,6 +11,7 @@ import { User, Mail, Phone, Shield, Calendar, Key, Save, Loader2, CheckCircle2, 
 import { toast } from 'sonner';
 import { ROLE_LABELS, ROLE_COLORS, formatDate } from '@/lib/rbac';
 import type { Role } from '@/lib/rbac';
+import { useRouter } from 'next/navigation';
 
 interface ProfileData {
   id: string;
@@ -32,7 +33,7 @@ export default function ProfilePage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-
+  const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -265,6 +266,16 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6" dir="rtl">
+      <div className="block sm:hidden">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => router.back()}
+        className="gap-2 px-2 -ml-2 text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="w-7 h-7" />
+      </Button>
+    </div>
       <div>
         <h2 className="text-xl font-extrabold">پروفایل کاربری</h2>
         <p className="text-sm text-muted-foreground mt-0.5">مدیریت اطلاعات شخصی و تنظیمات امنیتی حساب کاربری</p>
