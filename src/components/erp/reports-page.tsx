@@ -354,6 +354,21 @@ export default function ReportsPage() {
                   <TableBody>
                     {getFilteredTransactions().map((tx) => (
                       <TableRow key={tx.id}>
+                         <TableCell className="text-center">
+  {tx.imageUrl ? (
+    <a 
+      href={tx.imageUrl} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+    >
+      <Eye className="w-3.5 h-3.5" />
+      <span className="text-[10px] hidden sm:inline">مشاهده</span>
+    </a>
+  ) : (
+    <span className="text-[10px] text-muted-foreground">—</span>
+  )}
+</TableCell>
                         <TableCell>
                           <div className="text-right">
                             <Badge className={TRANSACTION_TYPE_COLORS[tx.type] || ''} variant="secondary">
@@ -369,21 +384,6 @@ export default function ReportsPage() {
                         </TableCell>
                         <TableCell className="text-sm font-semibold text-right">{tx.totalPrice > 0 ? formatCurrency(tx.totalPrice) : '---'}</TableCell>
                         <TableCell className="text-sm text-muted-foreground text-right">{formatDate(tx.date)}</TableCell>
-                        <TableCell className="text-center">
-  {tx.imageUrl ? (
-    <a 
-      href={tx.imageUrl} 
-      target="_blank" 
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
-    >
-      <Eye className="w-3.5 h-3.5" />
-      <span className="text-[10px] hidden sm:inline">مشاهده</span>
-    </a>
-  ) : (
-    <span className="text-[10px] text-muted-foreground">—</span>
-  )}
-</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

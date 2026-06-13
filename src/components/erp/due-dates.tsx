@@ -22,7 +22,7 @@ import {
 import {
   CalendarClock, AlertTriangle, Clock, CheckCircle2, Search,
   Filter, DollarSign, TrendingUp, Phone, Building2,
-  CreditCard, Eye, Receipt, ArrowUpDown,Mic, X, Loader2
+  CreditCard, Eye, Receipt, ArrowUpDown,Mic, X, Loader2, Camera
 } from 'lucide-react';
 import ShamsiDatePicker from '@/components/ui/shamsi-date-picker';
 import { toast } from 'sonner';

@@ -1870,7 +1870,7 @@ const uploadFileToBlob = async (file: File, prefix: string): Promise<string | nu
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => router.back()}
+        onClick={() =>  router.push('/dashboard')}
         className="gap-2 px-2 -ml-2 text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="w-7 h-7" />
