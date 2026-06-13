@@ -317,13 +317,13 @@ export default function ReportsPage() {
             <TabsTrigger value="invoices" className="rounded-lg text-xs">فاکتورها</TabsTrigger>
             <TabsTrigger value="summary" className="rounded-lg text-xs">خلاصه پروژه</TabsTrigger>
           </TabsList>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="gap-2 rounded-xl text-xs"
+          <div className="flex flex-col sm:flex-row gap-2">
+          <Button size="sm" variant="outline" className="gap-2 rounded-xl text-xs w-full sm:w-auto"
               onClick={() => handleExportCSV('transactions')}>
               <Download className="w-3.5 h-3.5" />
               خروجی CSV تراکنش‌ها
             </Button>
-            <Button size="sm" variant="outline" className="gap-2 rounded-xl text-xs"
+            <Button size="sm" variant="outline" className="gap-2 rounded-xl text-xs w-full sm:w-auto"
               onClick={() => handleExportCSV('invoices')}>
               <Download className="w-3.5 h-3.5" />
               خروجی CSV فاکتورها

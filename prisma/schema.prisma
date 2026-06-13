@@ -249,7 +249,7 @@ model Payment {
   bankName    String?  // نام بانک
   note        String?  // یادداشت
   createdAt   DateTime @default(now())
-
+  voiceNoteUrl String?
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 }
 
