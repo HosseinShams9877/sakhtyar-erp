@@ -57,7 +57,7 @@ export async function proxy(request: NextRequest) {
   // مسیرهای API عمومی
   const publicApiPaths = ['/api/seed', '/api/cron', '/api/csrf-token', '/api/settings/public', '/api/docs'];
   if (publicApiPaths.some(path => pathname.startsWith(path))) {
-    return NextResponse.next();
+    return NextResponse.next()
   }
 
   // بررسی دسترسی
