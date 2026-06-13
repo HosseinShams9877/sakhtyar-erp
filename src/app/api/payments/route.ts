@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { purchaseId, amount, paymentDate, note, method, checkNumber, bankName, dueDate } = body;
+    const { purchaseId, amount, paymentDate, note, method, checkNumber, bankName, dueDate,receiptImage } = body;
 
     if (!purchaseId || amount === undefined) {
       return NextResponse.json(
@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
           method: method || 'CASH',
           checkNumber: checkNumber || null,
           bankName: bankName || null,
+          receiptImage: receiptImage || null,
           dueDate: dueDate ? new Date(dueDate) : null,
         },
         include: {
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest) {
           },
         });
         
-        console.log(`✅ نوتیفیکیشن برای انباردار (${warehouseKeeper.user.name}) ارسال شد`);
+       
       } else {
         console.log(`⚠️ انبارداری برای پروژه ${purchase.project?.name} یافت نشد`);
       }

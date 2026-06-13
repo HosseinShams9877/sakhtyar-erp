@@ -309,7 +309,7 @@ const loadStocks = useCallback(async () => {
     setSubmitting(true);
     try {
       const res = await fetch('/api/warehouse', {
-        method: 'PUT', // ← این را از POST به PUT تغییر بده
+        method: 'PUT', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: selectedProjectId,

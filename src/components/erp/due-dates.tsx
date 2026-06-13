@@ -130,6 +130,8 @@ export default function DueDates() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
   
 
   // Filters
@@ -159,7 +161,27 @@ export default function DueDates() {
   // Sort
   const [sortBy, setSortBy] = useState<'urgency' | 'amount' | 'dueDate'>('urgency');
 
-
+  const uploadReceiptImage = async (paymentId: string, file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('paymentId', paymentId);
+      
+      const res = await fetch('/api/upload/receipt', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        return data.url;
+      }
+      return null;
+    } catch (error) {
+      console.error('Receipt upload error:', error);
+      return null;
+    }
+  };
   // ─── Data Loading ───
   const loadData = useCallback(async () => {
     try {
@@ -281,7 +303,12 @@ const uploadVoiceNote = async (paymentId: string, file: File): Promise<string | 
 
       if (res.ok) {
         const paymentData = await res.json(); // ✅ اضافه کن - آیدی پرداخت رو بگیر
-        
+        let receiptUrl: string | null = null;
+  if (receiptFile) {
+    setUploadingReceipt(true);
+    receiptUrl = await uploadReceiptImage(paymentData.id, receiptFile);
+    setUploadingReceipt(false);
+  }
         // ✅ آپلود ویس بعد از ثبت پرداخت
         let voiceUrl: string | null = null;
         if (voiceFile) {
@@ -300,6 +327,7 @@ const uploadVoiceNote = async (paymentId: string, file: File): Promise<string | 
         
         setPaymentDialogOpen(false);
         setSelectedDue(null);
+        setReceiptFile(null);
         setVoiceFile(null); 
         loadData();
       }
@@ -706,6 +734,32 @@ const uploadVoiceNote = async (paymentId: string, file: File): Promise<string | 
                     rows={2}
                   />
                 </div>
+                <div className="space-y-2">
+  <Label className="text-xs font-semibold">تصویر رسید (اختیاری)</Label>
+  <div className="flex items-center gap-2">
+    <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-500 transition-all bg-gray-50">
+      <Camera className="w-4 h-4 text-blue-600" />
+      <span className="text-sm">{receiptFile ? receiptFile.name : 'انتخاب تصویر'}</span>
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+      />
+    </label>
+    {receiptFile && (
+      <Button type="button" variant="ghost" size="icon" onClick={() => setReceiptFile(null)}>
+        <X className="w-4 h-4 text-red-500" />
+      </Button>
+    )}
+  </div>
+  {uploadingReceipt && (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <Loader2 className="w-3 h-3 animate-spin" />
+      در حال آپلود تصویر...
+    </div>
+  )}
+</div>
                 <div className="space-y-2">
   <Label className="text-xs font-semibold">ویس یادداشت (اختیاری)</Label>
   <div className="flex items-center gap-2">

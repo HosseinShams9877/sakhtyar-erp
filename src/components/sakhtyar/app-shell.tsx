@@ -283,32 +283,35 @@ const uniqueUnits = React.useMemo(() => {
     }
   };
   // تابع انتخاب فایل (تصویر یا PDF)
-const handleFileSelect = (file: File) => {
-  // بررسی حجم فایل (حداکثر 5 مگابایت)
-  if (file.size > 5 * 1024 * 1024) {
-    toast.error('حجم فایل نباید بیشتر از ۵ مگابایت باشد');
-    return;
-  }
-
-  // بررسی نوع فایل
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-  if (!allowedTypes.includes(file.type)) {
-    toast.error('فرمت فایل مجاز نیست. فقط تصویر یا PDF');
-    return;
-  }
-
-  // برای تصاویر، پیش‌نمایش بساز
-  if (file.type.startsWith('image/')) {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setCapturedImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  } else {
-    // برای PDF، نام فایل را ذخیره کن
-    setCapturedImage(file.name);
-  }
-};
+  const handleFileSelect = (file: File) => {
+    // بررسی حجم فایل (حداکثر 5 مگابایت)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('حجم فایل نباید بیشتر از ۵ مگابایت باشد');
+      return;
+    }
+  
+    // ✅ هر نوع فایل تصویری رو قبول کن (حتی HEIC از آیفون)
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+    
+    // اگه نه تصویر باشه و نه PDF
+    if (!isImage && !isPdf) {
+      toast.error('فرمت فایل مجاز نیست. فقط تصویر یا PDF');
+      return;
+    }
+  
+    // برای تصاویر، پیش‌نمایش بساز
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCapturedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // برای PDF، نام فایل را ذخیره کن
+      setCapturedImage(file.name);
+    }
+  };
 const handleRequestShortage = async () => {
   if (!selectedMaterial?.id || !selectedMaterial?.name || !shortageQuantity) {
     toast.error('لطفاً مصالح و مقدار را انتخاب کنید');
@@ -941,7 +944,7 @@ console.log('مصالح:', materials);
               onClick={() => {
                 const input = document.createElement('input');
                 input.type = 'file';
-                input.accept = 'image/*';
+                input.accept= "image/*"
                 input.capture = 'environment';
                 input.onchange = (e) => {
                   const file = (e.target as HTMLInputElement).files?.[0];

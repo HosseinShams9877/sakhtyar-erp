@@ -345,6 +345,7 @@ export default function ReportsPage() {
                       <TableHead className="text-right text-xs">مقدار</TableHead>
                       <TableHead className="text-right text-xs">مبلغ کل</TableHead>
                       <TableHead className="text-right text-xs">تاریخ</TableHead>
+                      <TableHead className="text-right text-xs">مدرک</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -365,6 +366,21 @@ export default function ReportsPage() {
                         </TableCell>
                         <TableCell className="text-sm font-semibold text-right">{tx.totalPrice > 0 ? formatCurrency(tx.totalPrice) : '---'}</TableCell>
                         <TableCell className="text-sm text-muted-foreground text-right">{formatDate(tx.date)}</TableCell>
+                        <TableCell className="text-center">
+  {tx.imageUrl ? (
+    <a 
+      href={tx.imageUrl} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+    >
+      <Eye className="w-3.5 h-3.5" />
+      <span className="text-[10px] hidden sm:inline">مشاهده</span>
+    </a>
+  ) : (
+    <span className="text-[10px] text-muted-foreground">—</span>
+  )}
+</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -388,6 +404,8 @@ export default function ReportsPage() {
                       <TableHead className="text-right text-xs">مالیات</TableHead>
                       <TableHead className="text-right text-xs">تاریخ</TableHead>
                       <TableHead className="text-right text-xs">وضعیت</TableHead>
+                      <TableHead className="text-right text-xs">مدرک</TableHead>
+                      <TableHead className="text-right text-xs">ویس</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -406,6 +424,35 @@ export default function ReportsPage() {
                             {INVOICE_STATUS_LABELS[inv.status] || inv.status}
                           </Badge>
                         </TableCell>
+                        {/* ستون مدرک (عکس فاکتور) */}
+<TableCell className="text-center">
+  {inv.invoiceImage ? (
+    <a 
+      href={inv.invoiceImage} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+    >
+      <Eye className="w-3.5 h-3.5" />
+      <span className="text-[10px] hidden sm:inline">مشاهده</span>
+    </a>
+  ) : (
+    <span className="text-[10px] text-muted-foreground">—</span>
+  )}
+</TableCell>
+
+{/* ستون ویس (فقط فاکتورهای پرداخت شده کامل) */}
+<TableCell className="text-center">
+  {inv.status === 'paid' && inv.payments?.[0]?.voiceNoteUrl ? (
+    <audio 
+      controls 
+      src={inv.payments[0].voiceNoteUrl} 
+      className="h-8 max-w-[120px] sm:max-w-[180px]"
+    />
+  ) : (
+    <span className="text-[10px] text-muted-foreground">—</span>
+  )}
+</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

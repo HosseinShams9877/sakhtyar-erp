@@ -246,6 +246,7 @@ model Payment {
   paymentDate DateTime @default(now())
   dueDate     DateTime? // سررسید چک
   checkNumber String?  // شماره چک
+  receiptImage String?
   bankName    String?  // نام بانک
   note        String?  // یادداشت
   createdAt   DateTime @default(now())
