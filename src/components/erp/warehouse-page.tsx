@@ -814,6 +814,3 @@ const loadStocks = useCallback(async () => {
     </div>
   );
 }
-    </div>
-  );
-}
