@@ -750,6 +750,70 @@ const loadStocks = useCallback(async () => {
           </form>
         </DialogContent>
       </Dialog>
+
+       {/* ─── دیالوگ تنظیم موجودی ─── */}
+       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="max-w-md rounded-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-primary" />
+              تنظیم موجودی انبار
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddStock} className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">انتخاب مصالح *</Label>
+              <Select
+                value={form.materialId}
+                onValueChange={(v) => setForm({ ...form, materialId: v })}
+              >
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="انتخاب مصالح..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {materials.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name} ({UNIT_LABELS[m.unit] || m.unit})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">موجودی جدید *</Label>
+              <Input
+                type="number"
+                step="any"
+                placeholder="مقدار جدید موجودی"
+                value={form.quantity}
+                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                className="input-modern rounded-xl"
+                required
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAddDialogOpen(false)}
+                className="rounded-xl"
+              >
+                انصراف
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="gap-2 gradient-primary hover:opacity-90 rounded-xl shadow-soft"
+              >
+                {submitting ? 'در حال ثبت...' : 'ثبت موجودی'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
     </div>
   );
 }
