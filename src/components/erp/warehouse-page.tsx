@@ -350,7 +350,7 @@ const loadStocks = useCallback(async () => {
       toast.error('مقدار واقعی تحویل‌شده را وارد کنید');
       return;
     }
-    setSubmitting(true);
+    setSubmitting(true)
     try {
       const res = await fetch('/api/transactions', {
         method: 'PUT',
