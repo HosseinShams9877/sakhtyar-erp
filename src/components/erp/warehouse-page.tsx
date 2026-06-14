@@ -173,8 +173,9 @@ export default function WarehousePage() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [confirmForm, setConfirmForm] = useState(emptyConfirmForm);
-  const { activeProject } = useProject();
+  const { activeProject ,activeRole} = useProject();
   const selectedProjectId = activeProject?.id || '';
+  const role = activeRole;
 
   // ─── Load Materials ───
 
@@ -458,6 +459,16 @@ const loadStocks = useCallback(async () => {
                 className="pr-9 input-modern rounded-xl"
               />
             </div>
+          {/* دکمه تنظیم موجودی - فقط برای مدیر پروژه و مدیر کل */}
+{(role === 'PROJECT_MANAGER' || role === 'SUPER_MANAGER') && (
+  <Button
+    onClick={() => setAddDialogOpen(true)}
+    className="gap-2 gradient-primary hover:opacity-90 rounded-xl shadow-soft"
+  >
+    <Plus className="w-4 h-4" />
+    تنظیم موجودی
+  </Button>
+)}
             {deliveryTransactions.length > 0 && (
               <Badge variant="outline" className="gap-1.5 px-3 py-1 text-xs border-amber-300 text-amber-700 bg-amber-50">
                 <Truck className="w-3 h-3" />
